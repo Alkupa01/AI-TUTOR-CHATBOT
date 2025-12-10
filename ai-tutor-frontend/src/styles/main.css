@@ -9,28 +9,29 @@ body {
 
 .page {
   width: 100%;
-  min-height: 100vh;
-  background-color: #0d0d0f;
+  height: 100vh;
 
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: center;  /* center vertical */
 
-  padding: 40px 20px;
-  color: #fff;
+  overflow: hidden;     /* halaman utama no scroll */
+
+  background-color: #0d0d0f;
+  padding: 0;
 }
+
 
 .container {
   width: 100%;
-  max-width: 900px;
+  max-width: 600px;
+  text-align: center;
 
   display: flex;
   flex-direction: column;
-  align-items: center; /* <-- ini penting */
-  justify-content: center;
-
-  text-align: center;
+  align-items: center;
 }
+
 
 
 /* Title */
@@ -55,21 +56,19 @@ body {
 }
 
 .level-button {
-  padding: 10px 28px;
-  border-radius: 12px;
-  background: #1c1c22;
-  color: white;
-  border: none;
-  cursor: pointer;
-  transition: 0.2s;
-  font-size: 15px;
+  padding: 12px 32px;
+  border-radius: 14px;
+  font-size: 16px;
+  background: #1d1d25;
+  border: 1px solid #333;
 }
 
 .level-button.active {
   background: #4f46e5;
+  border-color: #4f46e5;
 }
 
-/* Chat Card */
+
 .chat-card {
   background: #1b1b1f;
   padding: 28px;
@@ -78,11 +77,11 @@ body {
   margin-top: 20px;
   box-shadow: 0 0 18px rgba(0, 0, 0, 0.4);
 
-  width: 100%;          /* biar ukurannya rapi */
-  max-width: 600px;     /* supaya tidak terlalu lebar */
-  margin-left: auto;    /* <-- men-center-kan card */
-  margin-right: auto;   /* <-- men-center-kan card */
+  max-height: 60vh;          /* batas tinggi */
+  overflow-y: auto;          /* scroll hanya di chat */
+  overflow-x: hidden;        /* tidak scroll samping */
 }
+
 
 
 .chat-title {
@@ -103,24 +102,21 @@ body {
 
 .text-input {
   flex: 1;
-  padding: 14px;
-  background: #111115;
-  border-radius: 12px;
-  border: 1px solid #333;
-  color: white;
+  padding: 14px 18px;
+  background: #0f0f14;
+  border-radius: 14px;
+  border: 1px solid #2b2b37;
   font-size: 15px;
 }
 
 .send-btn {
-  padding: 14px 22px;
-  background: #4f46e5;
-  color: white;
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
-  transition: 0.2s;
+  padding: 14px 24px;
+  background: #5b54ff;
+  border-radius: 14px;
+  font-weight: 600;
 }
 
 .send-btn:hover {
-  background: #4338ca;
+  background: #4a45e0;
 }
+
