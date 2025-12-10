@@ -1,0 +1,126 @@
+/* --- Global Page Style --- */
+body {
+  margin: 0;
+  padding: 0;
+  background-color: #0d0d0f;
+  font-family: "Inter", sans-serif;
+  color: white;
+}
+
+.page {
+  width: 100%;
+  min-height: 100vh;
+  background-color: #0d0d0f;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  padding: 40px 20px;
+  color: #fff;
+}
+
+.container {
+  width: 100%;
+  max-width: 900px;
+
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* <-- ini penting */
+  justify-content: center;
+
+  text-align: center;
+}
+
+
+/* Title */
+.title {
+  font-size: 48px;
+  font-weight: 800;
+  margin-bottom: 10px;
+}
+
+.subtitle {
+  font-size: 18px;
+  margin-bottom: 30px;
+  opacity: 0.7;
+}
+
+/* Level Selector */
+.level-selector {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  margin-bottom: 30px;
+}
+
+.level-button {
+  padding: 10px 28px;
+  border-radius: 12px;
+  background: #1c1c22;
+  color: white;
+  border: none;
+  cursor: pointer;
+  transition: 0.2s;
+  font-size: 15px;
+}
+
+.level-button.active {
+  background: #4f46e5;
+}
+
+/* Chat Card */
+.chat-card {
+  background: #1b1b1f;
+  padding: 28px;
+  border-radius: 18px;
+  text-align: left;
+  margin-top: 20px;
+  box-shadow: 0 0 18px rgba(0, 0, 0, 0.4);
+
+  width: 100%;          /* biar ukurannya rapi */
+  max-width: 600px;     /* supaya tidak terlalu lebar */
+  margin-left: auto;    /* <-- men-center-kan card */
+  margin-right: auto;   /* <-- men-center-kan card */
+}
+
+
+.chat-title {
+  font-size: 22px;
+  margin-bottom: 10px;
+}
+
+.chat-desc {
+  opacity: 0.8;
+  margin-bottom: 20px;
+}
+
+/* Chat Input */
+.input-row {
+  display: flex;
+  gap: 10px;
+}
+
+.text-input {
+  flex: 1;
+  padding: 14px;
+  background: #111115;
+  border-radius: 12px;
+  border: 1px solid #333;
+  color: white;
+  font-size: 15px;
+}
+
+.send-btn {
+  padding: 14px 22px;
+  background: #4f46e5;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.send-btn:hover {
+  background: #4338ca;
+}
