@@ -1,4 +1,4 @@
-import logo from "../assets/logo_fix.png";
+import logo from "../assets/logofixx.png";
 import "../styles/headerbar.css";
 
 export default function HeaderBar() {
