@@ -7,7 +7,7 @@ export default function ChatCard({ level, question, setQuestion }) {
 
   return (
     <div className="chat-card">
-      <h2 className="chat-title">Tutor AI — {level}</h2>
+      <h2 className="chat-title">MentorKu AI — {level}</h2>
       <p className="chat-desc">
         Halo! Aku Tutor AI kamu. Mau belajar apa hari ini? 😊
       </p>

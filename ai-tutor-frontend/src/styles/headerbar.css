@@ -1,0 +1,24 @@
+.header-bar {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 18px 24px;
+  background: #0d0d0f00; /* transparan */
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.logo {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+  border-radius: 10px;
+}
+
+.app-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: white;
+}
