@@ -1,6 +1,6 @@
 import { useState } from "react";
 import "./styles/main.css";
-import logo from "./assets/logo.png";
+import logo from "./assets/logofixx.png";
 
 function ChatLayout({
   logsOpen,
