@@ -1,122 +1,494 @@
-/* --- Global Page Style --- */
-body {
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap");
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
   margin: 0;
   padding: 0;
-  background-color: #0d0d0f;
-  font-family: "Inter", sans-serif;
-  color: white;
+  height: 100%;
+  width: 100%;
 }
 
-.page {
-  width: 100%;
-  height: 100vh;
-
-  display: flex;
-  justify-content: center;
-  align-items: center;  /* center vertical */
-
-  overflow: hidden;     /* halaman utama no scroll */
-
-  background-color: #0d0d0f;
-  padding: 0;
+body {
+  font-family: "Poppins", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: #f5f7fb;
+  color: #111827;
 }
 
+/* ===== APP SHELL ===== */
 
-.container {
-  width: 100%;
-  max-width: 600px;
-  text-align: center;
-
+.app-shell {
   display: flex;
   flex-direction: column;
+  height: 100vh;
+}
+
+/* HEADER */
+
+.app-header {
+  height: 64px;
+  padding: 0 24px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #e5e7eb;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
 }
 
-
-
-/* Title */
-.title {
-  font-size: 48px;
-  font-weight: 800;
-  margin-bottom: 10px;
-}
-
-.subtitle {
-  font-size: 18px;
-  margin-bottom: 30px;
-  opacity: 0.7;
-}
-
-/* Level Selector */
-.level-selector {
+.app-header-left {
   display: flex;
-  justify-content: center;
-  gap: 12px;
-  margin-bottom: 30px;
-}
-
-.level-button {
-  padding: 12px 32px;
-  border-radius: 14px;
-  font-size: 16px;
-  background: #1d1d25;
-  border: 1px solid #333;
-}
-
-.level-button.active {
-  background: #4f46e5;
-  border-color: #4f46e5;
-}
-
-
-.chat-card {
-  background: #1b1b1f;
-  padding: 28px;
-  border-radius: 18px;
-  text-align: left;
-  margin-top: 20px;
-  box-shadow: 0 0 18px rgba(0, 0, 0, 0.4);
-
-  max-height: 60vh;          /* batas tinggi */
-  overflow-y: auto;          /* scroll hanya di chat */
-  overflow-x: hidden;        /* tidak scroll samping */
-}
-
-
-
-.chat-title {
-  font-size: 22px;
-  margin-bottom: 10px;
-}
-
-.chat-desc {
-  opacity: 0.8;
-  margin-bottom: 20px;
-}
-
-/* Chat Input */
-.input-row {
-  display: flex;
+  align-items: center;
   gap: 10px;
 }
 
-.text-input {
-  flex: 1;
-  padding: 14px 18px;
-  background: #0f0f14;
-  border-radius: 14px;
-  border: 1px solid #2b2b37;
-  font-size: 15px;
+.app-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: contain;
 }
 
-.send-btn {
-  padding: 14px 24px;
-  background: #5b54ff;
-  border-radius: 14px;
+.app-title {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.app-header-right {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+/* icon button (settings, toggle, dll) */
+.icon-btn {
+  border: none;
+  background: #f3f4f6;
+  border-radius: 999px;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  color: #4b5563;
+  transition: background 0.15s ease, transform 0.05s ease;
+}
+
+.icon-btn:hover {
+  background: #e5e7eb;
+}
+
+.icon-btn:active {
+  transform: scale(0.97);
+}
+
+/* SETTINGS POPUP */
+
+.settings-menu {
+  position: absolute;
+  right: 0;
+  top: 40px;
+  width: 240px;
+  background: #ffffff;
+  border-radius: 16px;
+  padding: 14px 14px 10px;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.18);
+  border: 1px solid #e5e7eb;
+  z-index: 20;
+}
+
+.settings-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.settings-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  background: #fee2e2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  color: #b91c1c;
+}
+
+.settings-name {
+  font-size: 14px;
   font-weight: 600;
 }
 
-.send-btn:hover {
-  background: #4a45e0;
+.settings-username {
+  font-size: 12px;
+  color: #6b7280;
 }
 
+.settings-menu hr {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 8px 0;
+}
+
+.settings-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.settings-btn {
+  border: none;
+  border-radius: 999px;
+  padding: 7px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.settings-btn:hover {
+  background: #e5e7eb;
+}
+
+.settings-btn.logout {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.settings-btn.logout:hover {
+  background: #fecaca;
+}
+
+/* ===== LAYOUT 75% / 25% ===== */
+
+.app-main {
+  flex: 1;
+  display: flex;
+  padding: 16px 24px;
+  gap: 16px;
+  background-color: #f3f4f6;
+}
+
+/* container punya 2 mode: dengan logs & tanpa logs */
+
+.app-main.with-logs .chat-section {
+  width: 75%;
+}
+
+.app-main.with-logs .logs-section {
+  width: 25%;
+}
+
+.app-main.no-logs .chat-section {
+  width: 100%;
+}
+
+.app-main.no-logs .logs-section {
+  display: none;
+}
+
+/* ===== CHAT SECTION (75%) ===== */
+
+.chat-section {
+  height: 100%;
+}
+
+.chat-panel {
+  background-color: #daf8ff;
+  border-radius: 20px;
+  padding: 18px 18px 14px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.14);
+}
+
+/* greeting di atas */
+
+.chat-greeting {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.chat-subtext {
+  font-size: 13px;
+  color: #4b5563;
+  margin-bottom: 12px;
+}
+
+/* area messages */
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* bubble chat putih */
+
+.chat-bubble {
+  max-width: 70%;
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: #ffffff;
+  font-size: 14px;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+}
+
+.chat-bubble.user {
+  align-self: flex-end;
+  border-bottom-right-radius: 4px;
+}
+
+.chat-bubble.ai {
+  align-self: flex-start;
+  border-bottom-left-radius: 4px;
+}
+
+/* input bar */
+
+.chat-input-bar {
+  margin-top: 8px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.chat-input-field {
+  flex: 1;
+  border-radius: 999px;
+  border: 1px solid #c4dbe4;
+  padding: 10px 14px;
+  font-size: 14px;
+  outline: none;
+}
+
+.chat-input-field:focus {
+  border-color: #07acd6;
+  box-shadow: 0 0 0 1px rgba(7, 172, 214, 0.3);
+}
+
+.chat-send-btn {
+  border-radius: 999px;
+  border: none;
+  padding: 10px 18px;
+  background-color: #07acd6;
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.chat-send-btn:hover {
+  background-color: #0592b7;
+}
+
+/* tombol toggle logs mengambang di kanan ketika panel logs disembunyikan */
+
+.logs-toggle-floating {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* ===== LOGS SECTION (25%) ===== */
+
+.logs-section {
+  height: 100%;
+  position: relative;
+}
+
+.logs-panel {
+  background: #ffffff;
+  border-radius: 20px;
+  height: 100%;
+  padding: 14px 14px 10px;
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.12);
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e5e7eb;
+}
+
+.logs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.logs-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.logs-buttons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.new-chat-btn {
+  border-radius: 999px;
+  border: none;
+  padding: 6px 10px;
+  font-size: 12px;
+  background: #07acd6;
+  color: white;
+  cursor: pointer;
+}
+
+.new-chat-btn:hover {
+  background: #0592b7;
+}
+
+.logs-toggle-btn {
+  font-size: 14px;
+}
+
+/* list logs */
+
+.logs-list {
+  flex: 1;
+  overflow-y: auto;
+  margin-top: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* log item sekarang flex supaya ada tulisan + icon trash di kanan */
+.log-item {
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 13px;
+  cursor: pointer;
+  background: #f3f4f6;
+  color: #111827;
+
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.log-item:hover {
+  background: #e5e7eb;
+}
+
+.log-item.active {
+  background: #07acd6;
+  color: #ffffff;
+}
+
+/* ikon trash di kanan, default disembunyikan */
+.log-delete-btn {
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  color: inherit;
+}
+
+/* saat hover log-item, trash muncul */
+.log-item:hover .log-delete-btn {
+  opacity: 1;
+}
+
+
+/* ===== PROFILE PAGE ===== */
+
+.profile-page {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+  background: #f3f4f6;
+}
+
+.profile-card {
+  width: 100%;
+  max-width: 420px;
+  border-radius: 20px;
+  background: #ffffff;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.14);
+  padding: 22px 22px 18px;
+}
+
+.profile-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.profile-avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: #fee2e2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 20px;
+  color: #b91c1c;
+}
+
+.profile-name {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.profile-username {
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* jenjang buttons */
+
+.profile-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+}
+
+.level-buttons {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.level-btn {
+  flex: 1;
+  border-radius: 12px;
+  padding: 8px 0;
+  font-size: 13px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  cursor: pointer;
+}
+
+.level-btn.active {
+  background: #07acd6;
+  color: white;
+  border-color: #07acd6;
+}
