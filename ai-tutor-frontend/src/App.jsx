@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import "./styles/main.css";
 import logo from "./assets/logofixx.png";
+import { getGeminiResponse } from "./services/geminiService";
 
 function ChatLayout({
   logsOpen,
@@ -14,14 +15,71 @@ function ChatLayout({
   setSelectedChatId,
   onNewChat,
   onDeleteChat,
+  level,
 }) {
-  const selectedChat = chats.find((c) => c.id === selectedChatId);
+  const [isLoading, setIsLoading] = useState(false);
+  
+  // --- 1. SETUP ATTACHMENT / FILE UPLOAD ---
+  const [attachment, setAttachment] = useState(null); // State untuk file sementara
+  const fileInputRef = useRef(null); // Ref untuk input file hidden
 
-  const handleSend = () => {
-    if (!input.trim()) return;
-    const newMsg = { id: Date.now(), sender: "user", text: input.trim() };
-    setMessages((prev) => [...prev, newMsg]);
+  // --- 2. SETUP AUTO-SCROLL ---
+  const messagesEndRef = useRef(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  // Scroll saat: ada pesan baru, loading berubah, atau ada attachment baru
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, isLoading, attachment]);
+
+  // --- 3. HANDLER FILE ---
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setAttachment(file);
+    }
+  };
+
+  const removeAttachment = () => {
+    setAttachment(null);
+    if (fileInputRef.current) fileInputRef.current.value = ""; // Reset input
+  };
+
+  // --- 4. LOGIKA KIRIM PESAN ---
+  const handleSend = async () => {
+    // Cek validasi: Harus ada text ATAU file, dan tidak sedang loading
+    if ((!input.trim() && !attachment) || isLoading) return;
+
+    // A. Tampilkan pesan user di UI
+    const userMsg = { 
+      id: Date.now(), 
+      sender: "user", 
+      text: input.trim(),
+      fileName: attachment ? attachment.name : null // Simpan nama file utk UI
+    };
+    setMessages((prev) => [...prev, userMsg]);
+    
+    // Simpan data sementara sebelum di-reset
+    const currentQuestion = input.trim();
+    const currentFile = attachment; 
+
+    // Reset Form
     setInput("");
+    setAttachment(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    
+    setIsLoading(true);
+
+    // B. Panggil API Gemini (Kirim Text + File)
+    const aiResponseText = await getGeminiResponse(currentQuestion, level, currentFile);
+
+    // C. Tampilkan balasan AI
+    const aiMsg = { id: Date.now() + 1, sender: "ai", text: aiResponseText };
+    setMessages((prev) => [...prev, aiMsg]);
+    setIsLoading(false);
   };
 
   const handleKeyDown = (e) => {
@@ -37,11 +95,10 @@ function ChatLayout({
       <div className="chat-section">
         <div className="chat-panel">
           <div className="chat-greeting">
-            Halo! Aku Tutor AI kamu. Mau belajar apa hari ini?
+            Halo! Aku Tutor AI ({level}). Mau belajar apa hari ini?
           </div>
           <div className="chat-subtext">
-            Mulai dengan menuliskan pertanyaan, misalnya:{" "}
-            <strong>“Jelaskan pecahan untuk kelas 4 SD”</strong>.
+            Mulai dengan menuliskan pertanyaan, atau <strong>lampirkan foto soal</strong> matematika kamu! 📸
           </div>
 
           <div className="chat-messages">
@@ -57,26 +114,71 @@ function ChatLayout({
                 key={m.id}
                 className={`chat-bubble ${m.sender === "user" ? "user" : "ai"}`}
               >
-                {m.text}
+                {/* Tampilkan indikator file jika user mengirim file */}
+                {m.fileName && (
+                   <div className="file-indicator">📎 {m.fileName}</div>
+                )}
+                {/* Agar format teks (bold/enter) dari Gemini terlihat rapi */}
+                <span style={{ whiteSpace: "pre-wrap" }}>{m.text}</span>
               </div>
             ))}
+
+            {isLoading && (
+              <div className="chat-bubble ai">
+                <em>Sedang menganalisis... 🤖</em>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
           </div>
 
-          <div className="chat-input-bar">
-            <input
-              className="chat-input-field"
-              placeholder="Tulis pertanyaanmu di sini..."
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-            />
-            <button className="chat-send-btn" onClick={handleSend}>
-              Kirim
-            </button>
+          {/* AREA INPUT (Wrapper baru untuk menampung Preview & Input Bar) */}
+          <div className="chat-input-wrapper">
+            
+            {/* PREVIEW FILE (Muncul jika ada file dipilih) */}
+            {attachment && (
+              <div className="attachment-preview">
+                <span className="attachment-name">📄 {attachment.name}</span>
+                <button className="attachment-remove" onClick={removeAttachment}>✕</button>
+              </div>
+            )}
+
+            <div className="chat-input-bar">
+              {/* TOMBOL ATTACHMENT */}
+              <input 
+                type="file" 
+                ref={fileInputRef} 
+                onChange={handleFileSelect} 
+                accept="image/*,application/pdf" // Hanya gambar & PDF
+                style={{ display: "none" }} 
+              />
+              <button 
+                className="icon-btn attach-btn" 
+                onClick={() => fileInputRef.current.click()}
+                title="Tambahkan Gambar/PDF"
+              >
+                📎
+              </button>
+
+              <input
+                className="chat-input-field"
+                placeholder={attachment ? "Tambahkan keterangan..." : "Tulis pertanyaanmu di sini..."}
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                disabled={isLoading} 
+              />
+              <button 
+                className="chat-send-btn" 
+                onClick={handleSend}
+                disabled={isLoading}
+              >
+                {isLoading ? "..." : "Kirim"}
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Tombol untuk menampilkan kembali logs saat disembunyikan */}
         {!logsOpen && (
           <button
             className="icon-btn logs-toggle-floating"
@@ -149,7 +251,7 @@ function ProfilePage({ level, setLevel }) {
           </div>
         </div>
 
-        <div className="profile-section-title">Jenjang</div>
+        <div className="profile-section-title">Jenjang Pendidikan</div>
         <div className="level-buttons">
           {["SD", "SMP", "SMA"].map((lvl) => (
             <button
@@ -161,13 +263,16 @@ function ProfilePage({ level, setLevel }) {
             </button>
           ))}
         </div>
+        <div style={{marginTop: "20px", fontSize: "12px", color: "#666"}}>
+            *Mengubah jenjang akan mengubah gaya bahasa AI Tutor.
+        </div>
       </div>
     </div>
   );
 }
 
 export default function App() {
-  const [page, setPage] = useState("chat"); // "chat" | "profile"
+  const [page, setPage] = useState("chat");
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [logsOpen, setLogsOpen] = useState(true);
   const [level, setLevel] = useState("SMP");
@@ -183,14 +288,14 @@ export default function App() {
 
   const handleNewChat = () => {
     const newId = Date.now();
-    const newChat = { id: newId, title: "Chat baru "};
+    const newChat = { id: newId, title: "Chat baru " };
     setChats((prev) => [newChat, ...prev]);
     setSelectedChatId(newId);
     setMessages([]);
     setInput("");
   };
 
-    const handleDeleteChat = (id) => {
+  const handleDeleteChat = (id) => {
     setChats((prev) => prev.filter((c) => c.id !== id));
 
     if (selectedChatId === id) {
@@ -262,7 +367,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* MAIN CONTENT: CHAT / PROFILE */}
+      {/* MAIN CONTENT */}
       {page === "chat" ? (
         <ChatLayout
           logsOpen={logsOpen}
@@ -275,7 +380,8 @@ export default function App() {
           selectedChatId={selectedChatId}
           setSelectedChatId={setSelectedChatId}
           onNewChat={handleNewChat}
-          onDeleteChat={handleDeleteChat} 
+          onDeleteChat={handleDeleteChat}
+          level={level}
         />
       ) : (
         <ProfilePage level={level} setLevel={setLevel} />
