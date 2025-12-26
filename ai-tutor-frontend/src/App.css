@@ -3,7 +3,7 @@
   min-height: 100vh;
   display: flex;
   justify-content: center;
-  align-items: center; /* Jika ingin benar-benar ke tengah vertikal */
+  align-items: center; 
 }
 
 

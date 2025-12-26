@@ -98,7 +98,7 @@ function ChatLayout({
             Halo! Aku Tutor AI ({level}). Mau belajar apa hari ini?
           </div>
           <div className="chat-subtext">
-            Mulai dengan menuliskan pertanyaan, atau <strong>lampirkan foto soal</strong> matematika kamu! 📸
+            Mulai dengan menuliskan pertanyaanmu
           </div>
 
           <div className="chat-messages">

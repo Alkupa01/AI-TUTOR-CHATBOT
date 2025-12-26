@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Test LaTeX Parsing</title>
+</head>
+<body>
+    <h1>Test LaTeX Parsing</h1>
+    
+    <p>Test content: "Rumus ini $a=2$ harus di-parse"</p>
+    
+    <script>
+        const testText = "Rumus ini $a=2$ harus di-parse";
+        const dollarRegex = /\$([^\$]+)\$/g;
+        
+        console.log("Test text:", testText);
+        console.log("Regex test:", testText.match(dollarRegex));
+        
+        let match;
+        while ((match = dollarRegex.exec(testText)) !== null) {
+            console.log("Found match:", match[0], "Formula:", match[1]);
+        }
+    </script>
+</body>
+</html>

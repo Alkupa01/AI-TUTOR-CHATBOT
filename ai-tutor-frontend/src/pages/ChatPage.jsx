@@ -4,6 +4,7 @@ import HeaderBar from "../components/HeaderBar";
 import ChatBubble from "../components/ChatBubble";
 import ChatInput from "../components/ChatInput";
 import TypingIndicator from "../components/TypingIndicator";
+import { getGeminiResponse } from "../services/geminiService";
 
 export default function ChatPage() {
   const [messages, setMessages] = useState([
@@ -19,17 +20,25 @@ export default function ChatPage() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
 
-  const handleSend = (text) => {
+  const handleSend = async (text, attachmentFile) => {
     setMessages((prev) => [...prev, { sender: "user", text }]);
     setLoading(true);
 
-    setTimeout(() => {
+    try {
+      const aiResponse = await getGeminiResponse(text, level, attachmentFile);
       setMessages((prev) => [
         ...prev,
-        { sender: "ai", text: "Oke, ini penjelasannya ya..." },
+        { sender: "ai", text: aiResponse },
       ]);
+    } catch (error) {
+      console.error("Error:", error);
+      setMessages((prev) => [
+        ...prev,
+        { sender: "ai", text: `Maaf, terjadi error: ${error.message}` },
+      ]);
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
 
   return (
@@ -45,7 +54,7 @@ export default function ChatPage() {
         <div className="flex justify-center w-full flex-1 overflow-y-auto p-4">
           <div className="w-full max-w-3xl space-y-4">
             {messages.map((msg, i) => (
-              <ChatBubble key={i} sender={msg.sender} text={msg.text} />
+              <ChatBubble key={i} sender={msg.sender} text={msg.text} level={level} />
             ))}
 
             {loading && <TypingIndicator />}

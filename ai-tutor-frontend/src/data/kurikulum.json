@@ -1,0 +1,192 @@
+{
+  "SD": {
+    "Matematika": {
+      "Kelas 1-2": [
+        "Bilangan 1-20",
+        "Penjumlahan dan Pengurangan",
+        "Bangun Datar Sederhana",
+        "Pengukuran Panjang dan Berat"
+      ],
+      "Kelas 3-4": [
+        "Bilangan hingga 10000",
+        "Perkalian dan Pembagian",
+        "Pecahan Sederhana",
+        "Keliling dan Luas",
+        "Pengukuran Waktu",
+        "Data dan Diagram"
+      ],
+      "Kelas 5-6": [
+        "Bilangan Bulat",
+        "Pecahan dan Desimal",
+        "Persentase",
+        "Perbandingan dan Skala",
+        "Operasi Hitung Campuran",
+        "Bangun Ruang",
+        "Volume dan Luas Permukaan",
+        "Statisitka Dasar"
+      ]
+    },
+    "Sains": {
+      "Kelas 1-2": [
+        "Makhluk Hidup",
+        "Benda dan Sifatnya",
+        "Energi Sederhana",
+        "Cahaya dan Bunyi"
+      ],
+      "Kelas 3-4": [
+        "Sistem Organ Tubuh Manusia",
+        "Ekosistem",
+        "Perubahan Benda",
+        "Gaya dan Gerak",
+        "Magnet"
+      ],
+      "Kelas 5-6": [
+        "Organ Pencernaan",
+        "Sistem Peredaran Darah",
+        "Respirasi",
+        "Tanah dan Batuan",
+        "Energi Terbarukan",
+        "Pemanasan Global"
+      ]
+    }
+  },
+  "SMP": {
+    "Matematika": {
+      "Kelas 7": [
+        "Bilangan Bulat dan Pecahan",
+        "Aljabar",
+        "Persamaan Linear Satu Variabel",
+        "Perbandingan dan Skala",
+        "Himpunan",
+        "Garis dan Sudut",
+        "Segitiga dan Segiempat",
+        "Statistika Dasar"
+      ],
+      "Kelas 8": [
+        "Pola dan Barisan Bilangan",
+        "Sistem Persamaan Linear Dua Variabel",
+        "Fungsi",
+        "Persamaan Garis Lurus",
+        "Teorema Pythagoras",
+        "Lingkaran",
+        "Bangun Ruang Sisi Datar",
+        "Statistika dan Peluang"
+      ],
+      "Kelas 9": [
+        "Perpangkatan dan Bentuk Akar",
+        "Persamaan Kuadrat",
+        "Fungsi Kuadrat",
+        "Transformasi Geometri",
+        "Kesebangunan dan Kekongruenan",
+        "Bangun Ruang Sisi Lengkung",
+        "Statistika Lanjutan"
+      ]
+    },
+    "IPA": {
+      "Kelas 7": [
+        "Besaran dan Satuan",
+        "Gerak dan Gaya",
+        "Tekanan",
+        "Zat dan Wujudnya",
+        "Kalor",
+        "Gelombang"
+      ],
+      "Kelas 8": [
+        "Getaran dan Gelombang",
+        "Bunyi",
+        "Cahaya dan Optik",
+        "Listrik Statis",
+        "Listrik Dinamis",
+        "Kemagnetan"
+      ],
+      "Kelas 9": [
+        "Atom dan Molekul",
+        "Sistem Periodik",
+        "Ikatan Kimia",
+        "Reaksi Kimia",
+        "Asam Basa dan Garam",
+        "Bioteknologi"
+      ]
+    }
+  },
+  "SMA": {
+    "Matematika": {
+      "Kelas 10": [
+        "Fungsi Eksponen dan Logaritma",
+        "Persamaan Kuadrat dan Pertidaksamaan",
+        "Sistem Persamaan Linear",
+        "Matriks",
+        "Trigonometri Dasar",
+        "Lingkaran dan Persamaannya",
+        "Kombinatorika"
+      ],
+      "Kelas 11": [
+        "Limit Fungsi",
+        "Turunan dan Aplikasinya",
+        "Integral Tak Tentu",
+        "Program Linear",
+        "Peluang Lanjutan",
+        "Distribusi Peluang"
+      ],
+      "Kelas 12": [
+        "Integral Tentu dan Aplikasinya",
+        "Persamaan Diferensial",
+        "Analisis Data Lanjutan",
+        "Geometri Analitik",
+        "Statistika Inferensial"
+      ]
+    },
+    "Fisika": {
+      "Kelas 10": [
+        "Kinematika",
+        "Dinamika",
+        "Energi dan Usaha",
+        "Momentum dan Impuls",
+        "Rotasi dan Gravitasi",
+        "Elastisitas"
+      ],
+      "Kelas 11": [
+        "Getaran Harmonis",
+        "Gelombang Mekanik",
+        "Bunyi",
+        "Fluida",
+        "Termodinamika",
+        "Listrik dan Magnetik"
+      ],
+      "Kelas 12": [
+        "Gelombang Elektromagnetik",
+        "Optik Geometri",
+        "Optik Fisika",
+        "Teori Kuantum",
+        "Fisika Inti",
+        "Relativitas"
+      ]
+    },
+    "Kimia": {
+      "Kelas 10": [
+        "Struktur Atom",
+        "Sistem Periodik",
+        "Ikatan Kimia",
+        "Tata Nama Senyawa",
+        "Persamaan Reaksi",
+        "Hukum Dasar Kimia"
+      ],
+      "Kelas 11": [
+        "Mol dan Stoikiometri",
+        "Termokimia",
+        "Laju Reaksi",
+        "Kesetimbangan Kimia",
+        "Larutan dan Konsentrasi",
+        "Asam Basa"
+      ],
+      "Kelas 12": [
+        "Titrasi",
+        "Hidrolisis Garam",
+        "Buffer",
+        "Kelarutan",
+        "Elektrokimia",
+        "Kimia Organik"
+      ]
+    }
+  }
+}
