@@ -290,12 +290,14 @@ export default function App() {
   useEffect(() => {
     if (user && authState && chats.length > 0) {
       const storageKey = `mentorku-data-${authState.userId}`;
+      const profileKey = `mentorku-profile-${authState.username}`;
       const dataToSave = {
         chats: chats,
         selectedChatId: selectedChatId
       };
       localStorage.setItem(storageKey, JSON.stringify(dataToSave));
       localStorage.setItem("mentorku-active-session", JSON.stringify(user));
+      localStorage.setItem(profileKey, JSON.stringify(user)); // Save profile with username key
       localStorage.setItem("tutor_currentUser", JSON.stringify(authState));
     }
   }, [chats, selectedChatId, user, authState]);
@@ -308,18 +310,18 @@ export default function App() {
     localStorage.setItem("tutor_currentUser", JSON.stringify(loginData));
     
     // Cek apakah user sudah pernah complete profile sebelumnya
-    const savedUserSession = localStorage.getItem("mentorku-active-session");
-    if (savedUserSession) {
+    // Cari di semua user data yang mungkin tersimpan
+    const userProfileKey = `mentorku-profile-${loginData.username}`;
+    const savedProfile = localStorage.getItem(userProfileKey);
+    
+    if (savedProfile) {
       try {
-        const userData = JSON.parse(savedUserSession);
-        // Validasi bahwa userId match
-        if (userData.userId === loginData.userId) {
-          // User sudah complete profile sebelumnya, langsung load data
-          loadUserSpecificData(userData);
-          return;
-        }
+        const userData = JSON.parse(savedProfile);
+        // User sudah complete profile sebelumnya, langsung load data
+        loadUserSpecificData(userData);
+        return;
       } catch (error) {
-        console.error("Error loading saved session:", error);
+        console.error("Error loading saved profile:", error);
       }
     }
     
@@ -327,12 +329,8 @@ export default function App() {
   };
 
   const handleRegister = (inputData) => {
-    // inputData = { name, grade, registeredAt, userId }
-    const enrichedData = {
-      ...inputData,
-      userId: authState.userId // Dari login state
-    };
-    loadUserSpecificData(enrichedData);
+    // inputData sudah include userId dan username dari Onboarding
+    loadUserSpecificData(inputData);
   };
 
   const handleLogout = () => {
@@ -414,7 +412,7 @@ export default function App() {
 
   // Step 2: User sudah login tapi belum lengkap profile (isi nama & kelas)
   if (!user) {
-    return <Onboarding onSave={handleRegister} />;
+    return <Onboarding onSave={handleRegister} userId={authState.userId} username={authState.username} />;
   }
 
   // Step 3: User sudah login dan profil lengkap, tampilkan chat

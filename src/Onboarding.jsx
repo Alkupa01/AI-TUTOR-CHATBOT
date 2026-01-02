@@ -2,7 +2,7 @@ import { useState } from "react";
 import "./styles/main.css";
 import logo from "./assets/logofixx.png"; // Pastikan path logo benar
 
-export default function Onboarding({ onSave }) {
+export default function Onboarding({ onSave, userId, username }) {
   const [name, setName] = useState("");
   const [grade, setGrade] = useState("7");
 
@@ -14,6 +14,8 @@ export default function Onboarding({ onSave }) {
       name: name,
       grade: parseInt(grade),
       registeredAt: new Date().toISOString(),
+      userId: userId,
+      username: username
     };
     
     onSave(userData);
