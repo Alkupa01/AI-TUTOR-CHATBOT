@@ -306,7 +306,24 @@ export default function App() {
     // loginData = { userId, username }
     setAuthState(loginData);
     localStorage.setItem("tutor_currentUser", JSON.stringify(loginData));
-    // Flow akan berlanjut ke onboarding karena user masih null
+    
+    // Cek apakah user sudah pernah complete profile sebelumnya
+    const savedUserSession = localStorage.getItem("mentorku-active-session");
+    if (savedUserSession) {
+      try {
+        const userData = JSON.parse(savedUserSession);
+        // Validasi bahwa userId match
+        if (userData.userId === loginData.userId) {
+          // User sudah complete profile sebelumnya, langsung load data
+          loadUserSpecificData(userData);
+          return;
+        }
+      } catch (error) {
+        console.error("Error loading saved session:", error);
+      }
+    }
+    
+    // Jika belum ada profile, tetap di onboarding (user masih null)
   };
 
   const handleRegister = (inputData) => {
