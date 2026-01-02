@@ -31,11 +31,13 @@ const calculateCurrentStatus = (userData) => {
 // --- KOMPONEN CHAT LAYOUT ---
 function ChatLayout({ 
   logsOpen, setLogsOpen, messages, onSendMessage, input, setInput, isLoading,
-  chats, selectedChatId, setSelectedChatId, onNewChat, onDeleteChat, level, user 
+  chats, selectedChatId, setSelectedChatId, onNewChat, onDeleteChat, onRenameChat, level, user 
 }) {
   const [attachment, setAttachment] = useState(null);
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
+  const [renamingChatId, setRenamingChatId] = useState(null);
+  const [newChatName, setNewChatName] = useState("");
   
   // Auto-scroll ke bawah saat ada pesan baru
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -57,6 +59,27 @@ function ChatLayout({
     setInput(""); 
     setAttachment(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleStartRename = (chat, e) => {
+    e.stopPropagation();
+    setRenamingChatId(chat.id);
+    setNewChatName(chat.title);
+  };
+
+  const handleSaveRename = (chatId, e) => {
+    e.stopPropagation();
+    if (newChatName.trim() && newChatName !== chats.find(c => c.id === chatId)?.title) {
+      onRenameChat(chatId, newChatName.trim());
+    }
+    setRenamingChatId(null);
+    setNewChatName("");
+  };
+
+  const handleCancelRename = (e) => {
+    e.stopPropagation();
+    setRenamingChatId(null);
+    setNewChatName("");
   };
 
   const handleKeyDown = (e) => {
@@ -161,8 +184,32 @@ function ChatLayout({
           <div className="logs-list">
             {chats.map((chat) => (
               <div key={chat.id} className={"log-item " + (chat.id === selectedChatId ? "active" : "")} onClick={() => setSelectedChatId(chat.id)}>
-                <span style={{whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '180px'}}>{chat.title}</span>
-                <button className="log-delete-btn" onClick={(e) => { e.stopPropagation(); onDeleteChat(chat.id); }}>🗑</button>
+                {renamingChatId === chat.id ? (
+                  <div className="rename-input-wrapper" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="text"
+                      className="rename-chat-input"
+                      value={newChatName}
+                      onChange={(e) => setNewChatName(e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleSaveRename(chat.id, e);
+                        if (e.key === "Escape") handleCancelRename(e);
+                      }}
+                      autoFocus
+                    />
+                    <button className="rename-save-btn" onClick={(e) => handleSaveRename(chat.id, e)}>✓</button>
+                    <button className="rename-cancel-btn" onClick={(e) => handleCancelRename(e)}>✕</button>
+                  </div>
+                ) : (
+                  <>
+                    <span style={{whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '150px'}}>{chat.title}</span>
+                    <div className="log-actions">
+                      <button className="log-rename-btn" onClick={(e) => handleStartRename(chat, e)}>✏️</button>
+                      <button className="log-delete-btn" onClick={(e) => { e.stopPropagation(); onDeleteChat(chat.id); }}>🗑</button>
+                    </div>
+                  </>
+                )}
               </div>
             ))}
           </div>
@@ -173,47 +220,119 @@ function ChatLayout({
 }
 
 // --- PROFILE PAGE ---
-function ProfilePage({ user, onBack, onLogout, onDeleteAccount }) {
+function ProfilePage({ user, onBack, onLogout, onDeleteAccount, onUpdateProfile }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedName, setEditedName] = useState(user.name);
+  const [editedGrade, setEditedGrade] = useState(user.currentGrade);
+  const [editError, setEditError] = useState("");
+
+  const handleSaveProfile = () => {
+    if (!editedName.trim()) {
+      setEditError("Nama tidak boleh kosong");
+      return;
+    }
+    if (!editedGrade) {
+      setEditError("Kelas harus dipilih");
+      return;
+    }
+    onUpdateProfile({ name: editedName.trim(), currentGrade: editedGrade });
+    setIsEditing(false);
+    setEditError("");
+  };
+
+  const handleCancelEdit = () => {
+    setEditedName(user.name);
+    setEditedGrade(user.currentGrade);
+    setIsEditing(false);
+    setEditError("");
+  };
+
   return (
     <div className="profile-page fade-in">
       <div className="profile-header-nav">
         <button onClick={onBack} className="back-btn">← Kembali ke Chat</button>
+        {!isEditing && (
+          <button onClick={() => setIsEditing(true)} className="edit-profile-btn">✏️ Edit Profil</button>
+        )}
       </div>
 
       <div className="profile-card">
-        <div className="profile-top">
-          <div className="profile-avatar-large">
-            {user.name.charAt(0).toUpperCase()}
-          </div>
-          <div className="profile-info">
-            <h2 className="profile-name">{user.name}</h2>
-            <p className="profile-badge">{user.level}</p>
-          </div>
-        </div>
+        {isEditing ? (
+          <div className="profile-edit-form">
+            <h3>Edit Profil</h3>
+            
+            <div className="form-group">
+              <label>Nama Lengkap</label>
+              <input
+                type="text"
+                value={editedName}
+                onChange={(e) => setEditedName(e.target.value)}
+                className="form-input"
+                placeholder="Masukkan nama Anda"
+              />
+            </div>
 
-        <div className="profile-details">
-          <div className="detail-item">
-            <span className="label">Kelas Saat Ini</span>
-            <span className="value">Kelas {user.currentGrade}</span>
-          </div>
-          <div className="detail-item">
-            <span className="label">Bergabung Sejak</span>
-            <span className="value">
-              {new Date(user.registeredAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
-            </span>
-          </div>
-        </div>
+            <div className="form-group">
+              <label>Kelas Saat Ini</label>
+              <select
+                value={editedGrade}
+                onChange={(e) => setEditedGrade(e.target.value)}
+                className="form-input"
+              >
+                <option value="">Pilih Kelas</option>
+                <option value="1">Kelas 1</option>
+                <option value="2">Kelas 2</option>
+                <option value="3">Kelas 3</option>
+                <option value="4">Kelas 4</option>
+                <option value="5">Kelas 5</option>
+                <option value="6">Kelas 6</option>
+              </select>
+            </div>
 
-        <div className="profile-actions">
-          <button className="action-btn logout-btn" onClick={onLogout}>Keluar Akun (Logout)</button>
-          
-          <div className="divider" style={{margin: "10px 0", borderTop: "1px solid #eee"}}></div>
-          
-          <div className="danger-zone">
-            <p>Ingin menghapus riwayat chat <strong>{user.name}</strong>?</p>
-            <button className="action-btn delete-btn" onClick={onDeleteAccount}>Hapus Data Permanen</button>
+            {editError && <div className="error-message">{editError}</div>}
+
+            <div className="form-actions">
+              <button onClick={handleSaveProfile} className="save-btn">Simpan Perubahan</button>
+              <button onClick={handleCancelEdit} className="cancel-btn">Batal</button>
+            </div>
           </div>
-        </div>
+        ) : (
+          <>
+            <div className="profile-top">
+              <div className="profile-avatar-large">
+                {user.name.charAt(0).toUpperCase()}
+              </div>
+              <div className="profile-info">
+                <h2 className="profile-name">{user.name}</h2>
+                <p className="profile-badge">{user.level}</p>
+              </div>
+            </div>
+
+            <div className="profile-details">
+              <div className="detail-item">
+                <span className="label">Kelas Saat Ini</span>
+                <span className="value">Kelas {user.currentGrade}</span>
+              </div>
+              <div className="detail-item">
+                <span className="label">Bergabung Sejak</span>
+                <span className="value">
+                  {new Date(user.registeredAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </span>
+              </div>
+            </div>
+
+            <div className="profile-actions">
+              <button className="action-btn logout-btn" onClick={onLogout}>Keluar Akun (Logout)</button>
+              
+              <div className="divider" style={{margin: "10px 0", borderTop: "1px solid #eee"}}></div>
+              
+              <div className="danger-zone">
+                <p>Ingin menghapus riwayat chat <strong>{user.name}</strong>?</p>
+                <button className="action-btn delete-btn" onClick={onDeleteAccount}>Hapus Data Permanen</button>
+              </div>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );
@@ -357,6 +476,21 @@ export default function App() {
     }
   };
 
+  const handleUpdateProfile = (updatedData) => {
+    const newUserData = {
+      ...user,
+      name: updatedData.name,
+      currentGrade: updatedData.currentGrade,
+    };
+    
+    setUser(newUserData);
+    
+    // Update di localStorage
+    localStorage.setItem("mentorku-active-session", JSON.stringify(newUserData));
+    localStorage.setItem(`mentorku-profile-${authState.username}`, JSON.stringify(newUserData));
+    localStorage.setItem(`mentorku-data-${authState.userId}`, JSON.stringify({ chats, user: newUserData }));
+  };
+
   // 5. CHAT LOGIC
   const activeChat = chats.find((c) => c.id === selectedChatId);
   const currentMessages = activeChat ? activeChat.messages : [];
@@ -372,6 +506,13 @@ export default function App() {
     const newChats = chats.filter((c) => c.id !== id);
     setChats(newChats);
     if (selectedChatId === id) setSelectedChatId(newChats[0]?.id ?? null);
+  };
+
+  const handleRenameChat = (id, newTitle) => {
+    const updatedChats = chats.map((chat) =>
+      chat.id === id ? { ...chat, title: newTitle } : chat
+    );
+    setChats(updatedChats);
   };
 
   const handleSendMessage = async (textInput, fileInput) => {
@@ -452,11 +593,11 @@ export default function App() {
           messages={currentMessages} onSendMessage={handleSendMessage} 
           input={input} setInput={setInput} isLoading={isLoading} 
           chats={chats} selectedChatId={selectedChatId}
-          setSelectedChatId={setSelectedChatId} onNewChat={handleNewChat} onDeleteChat={handleDeleteChat}
+          setSelectedChatId={setSelectedChatId} onNewChat={handleNewChat} onDeleteChat={handleDeleteChat} onRenameChat={handleRenameChat}
           level={user.level} user={user}
         />
       ) : (
-        <ProfilePage user={user} onBack={() => setPage("chat")} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount}/>
+        <ProfilePage user={user} onBack={() => setPage("chat")} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount} onUpdateProfile={handleUpdateProfile}/>
       )}
     </div>
   );
