@@ -4,6 +4,7 @@ import remarkGfm from "remark-gfm"; // Import Plugin Tabel
 import "./styles/main.css";
 import logo from "./assets/logofixx.png";
 import { getGeminiResponse } from "./services/geminiService";
+import Login from "./Login";
 import Onboarding from "./Onboarding";
 
 // --- HELPER: HITUNG KELAS & LEVEL OTOMATIS ---
@@ -221,6 +222,7 @@ function ProfilePage({ user, onBack, onLogout, onDeleteAccount }) {
 // --- MAIN APP (LOGIC UTAMA) ---
 export default function App() {
   // 1. STATE INITIALIZATION
+  const [authState, setAuthState] = useState(null); // null | { userId, username }
   const [user, setUser] = useState(null);
   const [chats, setChats] = useState([]); 
   const [selectedChatId, setSelectedChatId] = useState(null);
@@ -234,13 +236,26 @@ export default function App() {
   // Cek apakah ada sesi user yang "tertinggal" (misal di-refresh)
   useEffect(() => {
     try {
+      const savedAuthState = localStorage.getItem("tutor_currentUser");
       const savedUserSession = localStorage.getItem("mentorku-active-session");
-      if (savedUserSession) {
+      
+      if (savedAuthState && savedUserSession) {
+        const authData = JSON.parse(savedAuthState);
         const userData = JSON.parse(savedUserSession);
-        loadUserSpecificData(userData);
+        
+        // Validasi bahwa userId dari auth matches dengan user data
+        if (authData.userId === userData.userId) {
+          setAuthState(authData);
+          loadUserSpecificData(userData);
+        } else {
+          // Auth state mismatch, clear both
+          localStorage.removeItem("tutor_currentUser");
+          localStorage.removeItem("mentorku-active-session");
+        }
       }
     } catch (error) {
       console.error("Gagal memuat sesi:", error);
+      localStorage.removeItem("tutor_currentUser");
       localStorage.removeItem("mentorku-active-session");
     }
   }, []);
@@ -250,8 +265,8 @@ export default function App() {
     const processedUser = calculateCurrentStatus(userData);
     setUser(processedUser);
     
-    // Kunci Unik berdasarkan Nama (lowercase biar aman)
-    const storageKey = `mentorku-data-${processedUser.name.toLowerCase().replace(/\s/g, '-')}`;
+    // Kunci Unik berdasarkan userId (lebih aman dari nama)
+    const storageKey = `mentorku-data-${userData.userId}`;
     
     try {
       const savedData = localStorage.getItem(storageKey);
@@ -273,25 +288,40 @@ export default function App() {
 
   // 3. AUTO-SAVE
   useEffect(() => {
-    if (user && chats.length > 0) {
-      const storageKey = `mentorku-data-${user.name.toLowerCase().replace(/\s/g, '-')}`;
+    if (user && authState && chats.length > 0) {
+      const storageKey = `mentorku-data-${authState.userId}`;
       const dataToSave = {
         chats: chats,
         selectedChatId: selectedChatId
       };
       localStorage.setItem(storageKey, JSON.stringify(dataToSave));
       localStorage.setItem("mentorku-active-session", JSON.stringify(user));
+      localStorage.setItem("tutor_currentUser", JSON.stringify(authState));
     }
-  }, [chats, selectedChatId, user]);
+  }, [chats, selectedChatId, user, authState]);
 
 
   // 4. HANDLERS
+  const handleLoginSuccess = (loginData) => {
+    // loginData = { userId, username }
+    setAuthState(loginData);
+    localStorage.setItem("tutor_currentUser", JSON.stringify(loginData));
+    // Flow akan berlanjut ke onboarding karena user masih null
+  };
+
   const handleRegister = (inputData) => {
-    loadUserSpecificData(inputData);
+    // inputData = { name, grade, registeredAt, userId }
+    const enrichedData = {
+      ...inputData,
+      userId: authState.userId // Dari login state
+    };
+    loadUserSpecificData(enrichedData);
   };
 
   const handleLogout = () => {
+    localStorage.removeItem("tutor_currentUser");
     localStorage.removeItem("mentorku-active-session");
+    setAuthState(null);
     setUser(null);
     setChats([]);
     setPage("chat");
@@ -300,10 +330,12 @@ export default function App() {
 
   const handleDeleteAccount = () => {
     if(confirm(`Yakin hapus semua data milik ${user.name}?`)) {
-        const storageKey = `mentorku-data-${user.name.toLowerCase().replace(/\s/g, '-')}`;
+        const storageKey = `mentorku-data-${authState.userId}`;
         localStorage.removeItem(storageKey);
+        localStorage.removeItem("tutor_currentUser");
         localStorage.removeItem("mentorku-active-session");
         
+        setAuthState(null);
         setUser(null);
         setChats([]);
         setPage("chat");
@@ -358,9 +390,17 @@ export default function App() {
   };
 
   // --- RENDERING ---
+  // Step 1: User belum login
+  if (!authState) {
+    return <Login onLoginSuccess={handleLoginSuccess} />;
+  }
+
+  // Step 2: User sudah login tapi belum lengkap profile (isi nama & kelas)
   if (!user) {
     return <Onboarding onSave={handleRegister} />;
   }
+
+  // Step 3: User sudah login dan profil lengkap, tampilkan chat
 
   return (
     <div className="app-shell">
