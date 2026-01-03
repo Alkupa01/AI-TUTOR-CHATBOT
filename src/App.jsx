@@ -1,57 +1,59 @@
 import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm"; // Import Plugin Tabel
+import remarkGfm from "remark-gfm";
 import "./styles/main.css";
-import logo from "./assets/logofixx.png";
+import logo from "./assets/logofixx.png"; // Error 'logo' solved (dipakai di Header)
 import { getGeminiResponse } from "./services/geminiService";
 import Login from "./Login";
 import Onboarding from "./Onboarding";
 
-// --- HELPER: HITUNG KELAS & LEVEL OTOMATIS ---
+// --- HELPER PARSING JSON ---
+const parseAIResponse = (text) => {
+  const jsonRegex = /~~~json([\s\S]*?)~~~$/;
+  const match = text.match(jsonRegex);
+
+  if (match) {
+    try {
+      const jsonString = match[1];
+      const quizData = JSON.parse(jsonString);
+      const cleanText = text.replace(jsonRegex, "").trim();
+      return { text: cleanText, quiz: quizData, originalText: text };
+    } catch (e) {
+      console.error("Gagal parse JSON quiz:", e);
+      return { text: text, quiz: null, originalText: text };
+    }
+  }
+  return { text: text, quiz: null, originalText: text };
+};
+
 const calculateCurrentStatus = (userData) => {
   if (!userData) return null;
-
   const now = new Date();
   const registeredDate = new Date(userData.registeredAt);
-  
-  // Hitung selisih tahun (Simulasi kenaikan kelas)
   let yearDiff = now.getFullYear() - registeredDate.getFullYear();
   let currentGrade = userData.grade + yearDiff;
-
-  // Tentukan Jenjang (Level)
   let level = "UMUM";
   if (currentGrade >= 1 && currentGrade <= 6) level = "SD";
   else if (currentGrade >= 7 && currentGrade <= 9) level = "SMP";
   else if (currentGrade >= 10 && currentGrade <= 12) level = "SMA";
   else level = "MAHASISWA"; 
-
   return { ...userData, currentGrade, level };
 };
 
-// --- KOMPONEN CHAT LAYOUT ---
+// --- CHAT LAYOUT ---
 function ChatLayout({ 
   logsOpen, setLogsOpen, messages, onSendMessage, input, setInput, isLoading,
-  chats, selectedChatId, setSelectedChatId, onNewChat, onDeleteChat, onRenameChat, level, user 
+  chats, selectedChatId, setSelectedChatId, onNewChat, onDeleteChat, level, user,
+  socraticMode, setSocraticMode 
+  // 'onRenameChat' dihapus dari sini karena tidak dipakai di UI
 }) {
   const [attachment, setAttachment] = useState(null);
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
-  const [renamingChatId, setRenamingChatId] = useState(null);
-  const [newChatName, setNewChatName] = useState("");
-  
-  // Auto-scroll ke bawah saat ada pesan baru
+  const [answeredQuizzes, setAnsweredQuizzes] = useState({}); 
+
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   useEffect(() => scrollToBottom(), [messages, isLoading, attachment]);
-
-  const handleFileSelect = (e) => {
-    const file = e.target.files[0];
-    if (file) setAttachment(file);
-  };
-
-  const removeAttachment = () => {
-    setAttachment(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
 
   const handleSendClick = () => {
     if ((!input.trim() && !attachment) || isLoading) return;
@@ -61,483 +63,244 @@ function ChatLayout({
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const handleStartRename = (chat, e) => {
-    e.stopPropagation();
-    setRenamingChatId(chat.id);
-    setNewChatName(chat.title);
-  };
-
-  const handleSaveRename = (chatId, e) => {
-    e.stopPropagation();
-    if (newChatName.trim() && newChatName !== chats.find(c => c.id === chatId)?.title) {
-      onRenameChat(chatId, newChatName.trim());
-    }
-    setRenamingChatId(null);
-    setNewChatName("");
-  };
-
-  const handleCancelRename = (e) => {
-    e.stopPropagation();
-    setRenamingChatId(null);
-    setNewChatName("");
-  };
-
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendClick();
-    }
+  const handleQuizOptionClick = (messageId, option) => {
+    if (answeredQuizzes[messageId] || isLoading) return;
+    setAnsweredQuizzes(prev => ({ ...prev, [messageId]: option.label }));
+    const userText = `Saya memilih jawaban ${option.label}: "${option.text}"`;
+    onSendMessage(userText, null);
   };
 
   return (
     <div className={`app-main ${logsOpen ? "with-logs" : "no-logs"}`}>
-      {/* 75% - Area Chat */}
       <div className="chat-section">
         <div className="chat-panel">
-          
-          {/* Greeting Dinamis */}
-          <div className="chat-greeting">
-            Hi, {user.name}! 👋 <br/>
-            <span style={{fontSize: "14px", fontWeight: "400", color: "#555"}}>
-               Aku Tutor AI untuk <strong>Kelas {user.currentGrade} ({level})</strong>. Semangat belajar! 🚀
-            </span>
+          <div className="chat-header-actions" style={{display:'flex', justifyContent:'space-between', padding:'0 10px', marginBottom:'20px'}}>
+             <div className="chat-greeting">
+                Hi, {user.name}! 👋 <br/>
+                <span style={{fontSize: "14px", color: "#555"}}>Tutor AI - Kelas {user.currentGrade} ({level})</span>
+             </div>
+             <div className="mode-toggle" style={{display:'flex', alignItems:'center', gap:'8px', background:'#f0f9ff', padding:'6px 12px', borderRadius:'20px'}}>
+                <span style={{fontSize:'12px', fontWeight:'bold', color: socraticMode ? '#0284c7' : '#64748b'}}>{socraticMode ? "🧠 Tutor" : "⚡ Cepat"}</span>
+                <label className="switch" style={{position:'relative', display:'inline-block', width:'34px', height:'20px'}}>
+                   <input type="checkbox" checked={socraticMode} onChange={() => setSocraticMode(!socraticMode)} style={{opacity:0, width:0, height:0}}/>
+                   <span className="slider round" style={{position:'absolute', cursor:'pointer', top:0, left:0, right:0, bottom:0, backgroundColor: socraticMode ? '#0ea5e9' : '#cbd5e1', transition:'.4s', borderRadius:'34px'}}>
+                      <span style={{position:'absolute', content:"", height:'14px', width:'14px', left:'3px', bottom:'3px', backgroundColor:'white', transition:'.4s', borderRadius:'50%', transform: socraticMode ? 'translateX(14px)' : 'translateX(0)'}}></span>
+                   </span>
+                </label>
+             </div>
           </div>
 
           <div className="chat-messages">
-             {messages.length === 0 && (
-               <div className="chat-bubble ai">Mau tanya materi apa hari ini?</div>
-             )}
+             {messages.length === 0 && <div className="chat-bubble ai">Mau tanya materi apa hari ini?</div>}
              
              {messages.map((m) => (
               <div key={m.id} className={`chat-bubble ${m.sender === "user" ? "user" : "ai"}`}>
                 {m.fileName && <div className="file-indicator">📎 {m.fileName}</div>}
                 
-                {m.sender === "ai" ? (
-                  <div className="markdown-content">
-                    {/* FITUR PENTING: remarkPlugins={[remarkGfm]} agar tabel muncul */}
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                      {m.text}
-                    </ReactMarkdown>
+                <div className="markdown-content">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text}</ReactMarkdown>
+                </div>
+
+                {m.sender === "ai" && m.quiz && (
+                  <div className="quiz-container" style={{marginTop: "15px", display: "flex", flexDirection: "column", gap: "8px"}}>
+                    <div style={{fontSize: "0.9em", fontWeight: "bold", marginBottom: "5px"}}>Pilih Jawaban:</div>
+                    {m.quiz.options.map((opt, idx) => {
+                        const isSelected = answeredQuizzes[m.id] === opt.label;
+                        const isAnswered = !!answeredQuizzes[m.id];
+                        return (
+                          <button 
+                            key={idx}
+                            onClick={() => handleQuizOptionClick(m.id, opt)}
+                            disabled={isAnswered}
+                            className={`quiz-option-btn ${isSelected ? "selected" : ""}`}
+                            style={{
+                              padding: "10px",
+                              border: "1px solid #ddd",
+                              borderRadius: "8px",
+                              background: isSelected ? "#07acd6" : "white",
+                              color: isSelected ? "white" : "#333",
+                              cursor: isAnswered ? "default" : "pointer",
+                              textAlign: "left",
+                              transition: "0.2s"
+                            }}
+                          >
+                            <strong>{opt.label}.</strong> {opt.text}
+                          </button>
+                        );
+                    })}
                   </div>
-                ) : (
-                  <span style={{ whiteSpace: "pre-wrap" }}>{m.text}</span>
                 )}
               </div>
             ))}
-            
-            {isLoading && (
-              <div className="chat-bubble ai"><em>Sedang berpikir... 🤖</em></div>
-            )}
-            
+            {isLoading && <div className="chat-bubble ai"><em>Sedang berpikir... 🤖</em></div>}
             <div ref={messagesEndRef} />
           </div>
 
-          {/* Input Area */}
           <div className="chat-input-wrapper">
             {attachment && (
-              <div className="attachment-preview">
-                <span className="attachment-name">📄 {attachment.name}</span>
-                <button className="attachment-remove" onClick={removeAttachment}>✕</button>
-              </div>
+              <div className="attachment-preview"><span className="attachment-name">📄 {attachment.name}</span><button className="attachment-remove" onClick={() => {setAttachment(null); if(fileInputRef.current) fileInputRef.current.value=""}}>✕</button></div>
             )}
             <div className="chat-input-bar">
-              <input 
-                type="file" 
-                ref={fileInputRef} 
-                onChange={handleFileSelect} 
-                accept="image/*,application/pdf" 
-                style={{ display: "none" }} 
-              />
+              <input type="file" ref={fileInputRef} onChange={(e) => setAttachment(e.target.files[0])} style={{display: "none"}} />
               <button className="icon-btn attach-btn" onClick={() => fileInputRef.current.click()}>📎</button>
-              
-              <input 
-                className="chat-input-field" 
-                placeholder={attachment ? "Beri keterangan..." : "Tulis pertanyaanmu..."} 
-                value={input} 
-                onChange={(e) => setInput(e.target.value)} 
-                onKeyDown={handleKeyDown} 
-                disabled={isLoading} 
-              />
-              
-              <button className="chat-send-btn" onClick={handleSendClick} disabled={isLoading}>
-                {isLoading ? "..." : "Kirim"}
-              </button>
+              <input className="chat-input-field" placeholder="Tulis pertanyaan..." value={input} onChange={(e) => setInput(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleSendClick()} disabled={isLoading} />
+              <button className="chat-send-btn" onClick={handleSendClick} disabled={isLoading}>{isLoading ? "..." : "Kirim"}</button>
             </div>
           </div>
         </div>
-        
-        {!logsOpen && (
-          <button className="icon-btn logs-toggle-floating" onClick={() => setLogsOpen(true)}>❯</button>
-        )}
+        {!logsOpen && <button className="icon-btn logs-toggle-floating" onClick={() => setLogsOpen(true)}>❯</button>}
       </div>
 
-      {/* 25% - Sidebar Logs */}
       <div className="logs-section">
         <div className="logs-panel">
-          <div className="logs-header">
-            <div className="logs-title">Riwayat Chat</div>
-            <div className="logs-buttons">
-              <button className="new-chat-btn" onClick={onNewChat}>+ Baru</button>
-              <button className="icon-btn logs-toggle-btn" onClick={() => setLogsOpen(false)}>❮</button>
+            <div className="logs-header">
+                <div className="logs-title">Riwayat Chat</div>
+                <div className="logs-buttons"><button className="new-chat-btn" onClick={onNewChat}>+ Baru</button><button className="icon-btn" onClick={() => setLogsOpen(false)}>❮</button></div>
             </div>
-          </div>
-          <div className="logs-list">
+            <div className="logs-list">
             {chats.map((chat) => (
               <div key={chat.id} className={"log-item " + (chat.id === selectedChatId ? "active" : "")} onClick={() => setSelectedChatId(chat.id)}>
-                {renamingChatId === chat.id ? (
-                  <div className="rename-input-wrapper" onClick={(e) => e.stopPropagation()}>
-                    <input
-                      type="text"
-                      className="rename-chat-input"
-                      value={newChatName}
-                      onChange={(e) => setNewChatName(e.target.value)}
-                      onClick={(e) => e.stopPropagation()}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleSaveRename(chat.id, e);
-                        if (e.key === "Escape") handleCancelRename(e);
-                      }}
-                      autoFocus
-                    />
-                    <button className="rename-save-btn" onClick={(e) => handleSaveRename(chat.id, e)}>✓</button>
-                    <button className="rename-cancel-btn" onClick={(e) => handleCancelRename(e)}>✕</button>
-                  </div>
-                ) : (
-                  <>
-                    <span style={{whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '150px'}}>{chat.title}</span>
-                    <div className="log-actions">
-                      <button className="log-rename-btn" onClick={(e) => handleStartRename(chat, e)}>✏️</button>
-                      <button className="log-delete-btn" onClick={(e) => { e.stopPropagation(); onDeleteChat(chat.id); }}>🗑</button>
-                    </div>
-                  </>
-                )}
+                 <span style={{whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '150px'}}>{chat.title}</span>
+                 <button className="log-delete-btn" onClick={(e) => {e.stopPropagation(); onDeleteChat(chat.id)}}>🗑</button>
               </div>
             ))}
-          </div>
+            </div>
         </div>
       </div>
     </div>
   );
 }
 
-// --- PROFILE PAGE ---
+// --- PROFILE PAGE (Dikembalikan agar setPage tidak error) ---
 function ProfilePage({ user, onBack, onLogout, onDeleteAccount, onUpdateProfile }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(user.name);
   const [editedGrade, setEditedGrade] = useState(user.currentGrade);
-  const [editError, setEditError] = useState("");
 
-  const handleSaveProfile = () => {
-    if (!editedName.trim()) {
-      setEditError("Nama tidak boleh kosong");
-      return;
+  const handleSave = () => {
+    if(editedName && editedGrade) {
+        onUpdateProfile({ name: editedName, currentGrade: editedGrade });
+        setIsEditing(false);
     }
-    if (!editedGrade) {
-      setEditError("Kelas harus dipilih");
-      return;
-    }
-    onUpdateProfile({ name: editedName.trim(), currentGrade: editedGrade });
-    setIsEditing(false);
-    setEditError("");
-  };
-
-  const handleCancelEdit = () => {
-    setEditedName(user.name);
-    setEditedGrade(user.currentGrade);
-    setIsEditing(false);
-    setEditError("");
   };
 
   return (
     <div className="profile-page fade-in">
       <div className="profile-header-nav">
-        <button onClick={onBack} className="back-btn">← Kembali ke Chat</button>
-        {!isEditing && (
-          <button onClick={() => setIsEditing(true)} className="edit-profile-btn">✏️ Edit Profil</button>
-        )}
+        <button onClick={onBack} className="back-btn">← Kembali</button>
       </div>
-
       <div className="profile-card">
         {isEditing ? (
-          <div className="profile-edit-form">
-            <h3>Edit Profil</h3>
-            
-            <div className="form-group">
-              <label>Nama Lengkap</label>
-              <input
-                type="text"
-                value={editedName}
-                onChange={(e) => setEditedName(e.target.value)}
-                className="form-input"
-                placeholder="Masukkan nama Anda"
-              />
+            <div className="profile-edit-form">
+                <h3>Edit Profil</h3>
+                <input className="form-input" value={editedName} onChange={e=>setEditedName(e.target.value)} placeholder="Nama" />
+                <select className="form-input" value={editedGrade} onChange={e=>setEditedGrade(e.target.value)}>
+                    {[1,2,3,4,5,6,7,8,9,10,11,12].map(g => <option key={g} value={g}>Kelas {g}</option>)}
+                </select>
+                <button className="save-btn" onClick={handleSave}>Simpan</button>
+                <button className="cancel-btn" onClick={()=>setIsEditing(false)}>Batal</button>
             </div>
-
-            <div className="form-group">
-              <label>Kelas Saat Ini</label>
-              <select
-                value={editedGrade}
-                onChange={(e) => setEditedGrade(e.target.value)}
-                className="form-input"
-              >
-                <option value="">Pilih Kelas</option>
-                <option value="1">Kelas 1</option>
-                <option value="2">Kelas 2</option>
-                <option value="3">Kelas 3</option>
-                <option value="4">Kelas 4</option>
-                <option value="5">Kelas 5</option>
-                <option value="6">Kelas 6</option>
-              </select>
-            </div>
-
-            {editError && <div className="error-message">{editError}</div>}
-
-            <div className="form-actions">
-              <button onClick={handleSaveProfile} className="save-btn">Simpan Perubahan</button>
-              <button onClick={handleCancelEdit} className="cancel-btn">Batal</button>
-            </div>
-          </div>
         ) : (
-          <>
-            <div className="profile-top">
-              <div className="profile-avatar-large">
-                {user.name.charAt(0).toUpperCase()}
-              </div>
-              <div className="profile-info">
-                <h2 className="profile-name">{user.name}</h2>
-                <p className="profile-badge">{user.level}</p>
-              </div>
-            </div>
-
-            <div className="profile-details">
-              <div className="detail-item">
-                <span className="label">Kelas Saat Ini</span>
-                <span className="value">Kelas {user.currentGrade}</span>
-              </div>
-              <div className="detail-item">
-                <span className="label">Bergabung Sejak</span>
-                <span className="value">
-                  {new Date(user.registeredAt).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })}
-                </span>
-              </div>
-            </div>
-
-            <div className="profile-actions">
-              <button className="action-btn logout-btn" onClick={onLogout}>Keluar Akun (Logout)</button>
-              
-              <div className="divider" style={{margin: "10px 0", borderTop: "1px solid #eee"}}></div>
-              
-              <div className="danger-zone">
-                <p>Ingin menghapus riwayat chat <strong>{user.name}</strong>?</p>
-                <button className="action-btn delete-btn" onClick={onDeleteAccount}>Hapus Data Permanen</button>
-              </div>
-            </div>
-          </>
+            <>
+                <div className="profile-top">
+                    <div className="profile-avatar-large">{user.name.charAt(0).toUpperCase()}</div>
+                    <h2>{user.name}</h2>
+                    <p>{user.level}</p>
+                </div>
+                <div className="profile-actions">
+                    <button className="edit-profile-btn" onClick={()=>setIsEditing(true)}>Edit Profil</button>
+                    <button className="action-btn logout-btn" onClick={onLogout}>Logout</button>
+                    <button className="action-btn delete-btn" onClick={onDeleteAccount}>Hapus Akun</button>
+                </div>
+            </>
         )}
       </div>
     </div>
   );
 }
 
-// --- MAIN APP (LOGIC UTAMA) ---
+// --- MAIN APP ---
 export default function App() {
-  // 1. STATE INITIALIZATION
-  const [authState, setAuthState] = useState(null); // null | { userId, username }
+  const [authState, setAuthState] = useState(null); 
   const [user, setUser] = useState(null);
   const [chats, setChats] = useState([]); 
   const [selectedChatId, setSelectedChatId] = useState(null);
-
-  const [page, setPage] = useState("chat");
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [socraticMode, setSocraticMode] = useState(true);
   const [logsOpen, setLogsOpen] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [input, setInput] = useState("");
+  const [page, setPage] = useState("chat"); // Error setPage solved (dipakai di Header)
+  const [settingsOpen, setSettingsOpen] = useState(false); // State untuk dropdown menu
 
-  // Cek apakah ada sesi user yang "tertinggal" (misal di-refresh)
+  // Load Initial Data
   useEffect(() => {
-    try {
-      const savedAuthState = localStorage.getItem("tutor_currentUser");
-      const savedUserSession = localStorage.getItem("mentorku-active-session");
-      
-      if (savedAuthState && savedUserSession) {
+    const savedAuthState = localStorage.getItem("tutor_currentUser");
+    const savedUserSession = localStorage.getItem("mentorku-active-session");
+    if (savedAuthState && savedUserSession) {
         const authData = JSON.parse(savedAuthState);
+        setAuthState(authData);
         const userData = JSON.parse(savedUserSession);
+        setUser(calculateCurrentStatus(userData));
         
-        // Validasi bahwa userId dari auth matches dengan user data
-        if (authData.userId === userData.userId) {
-          setAuthState(authData);
-          loadUserSpecificData(userData);
+        const storageKey = `mentorku-data-${authData.userId}`;
+        const savedData = localStorage.getItem(storageKey);
+        if(savedData) {
+            const parsed = JSON.parse(savedData);
+            setChats(parsed.chats || []);
+            setSelectedChatId(parsed.selectedChatId);
         } else {
-          // Auth state mismatch, clear both
-          localStorage.removeItem("tutor_currentUser");
-          localStorage.removeItem("mentorku-active-session");
+            const newId = Date.now();
+            setChats([{ id: newId, title: "Chat Baru", messages: [] }]);
+            setSelectedChatId(newId);
         }
-      }
-    } catch (error) {
-      console.error("Gagal memuat sesi:", error);
-      localStorage.removeItem("tutor_currentUser");
-      localStorage.removeItem("mentorku-active-session");
     }
   }, []);
 
-  // 2. FUNGSI LOAD DATA BERDASARKAN USERNAME
-  const loadUserSpecificData = (userData) => {
-    const processedUser = calculateCurrentStatus(userData);
-    setUser(processedUser);
-    
-    // Kunci Unik berdasarkan userId (lebih aman dari nama)
-    const storageKey = `mentorku-data-${userData.userId}`;
-    
-    try {
-      const savedData = localStorage.getItem(storageKey);
-      if (savedData) {
-        const parsedData = JSON.parse(savedData);
-        setChats(parsedData.chats || []);
-        setSelectedChatId(parsedData.selectedChatId || null);
-      } else {
-        const initialChats = [{ id: 1, title: "Chat Baru", messages: [] }];
-        setChats(initialChats);
-        setSelectedChatId(1);
-      }
-    } catch (error) {
-      console.error("Data korup, mereset chat:", error);
-      setChats([{ id: 1, title: "Chat Baru", messages: [] }]);
-      setSelectedChatId(1);
-    }
-  };
-
-  // 3. AUTO-SAVE
+  // Auto Save
   useEffect(() => {
     if (user && authState && chats.length > 0) {
       const storageKey = `mentorku-data-${authState.userId}`;
-      const profileKey = `mentorku-profile-${authState.username}`;
-      const dataToSave = {
-        chats: chats,
-        selectedChatId: selectedChatId
-      };
+      const dataToSave = { chats, selectedChatId };
       localStorage.setItem(storageKey, JSON.stringify(dataToSave));
-      localStorage.setItem("mentorku-active-session", JSON.stringify(user));
-      localStorage.setItem(profileKey, JSON.stringify(user)); // Save profile with username key
-      localStorage.setItem("tutor_currentUser", JSON.stringify(authState));
     }
-  }, [chats, selectedChatId, user, authState]);
-
-
-  // 4. HANDLERS
-  const handleLoginSuccess = (loginData) => {
-    // loginData = { userId, username }
-    setAuthState(loginData);
-    localStorage.setItem("tutor_currentUser", JSON.stringify(loginData));
-    
-    // Cek apakah user sudah pernah complete profile sebelumnya
-    // Cari di semua user data yang mungkin tersimpan
-    const userProfileKey = `mentorku-profile-${loginData.username}`;
-    const savedProfile = localStorage.getItem(userProfileKey);
-    
-    if (savedProfile) {
-      try {
-        const userData = JSON.parse(savedProfile);
-        // User sudah complete profile sebelumnya, langsung load data
-        loadUserSpecificData(userData);
-        return;
-      } catch (error) {
-        console.error("Error loading saved profile:", error);
-      }
-    }
-    
-    // Jika belum ada profile, tetap di onboarding (user masih null)
-  };
-
-  const handleRegister = (inputData) => {
-    // inputData sudah include userId dan username dari Onboarding
-    loadUserSpecificData(inputData);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem("tutor_currentUser");
-    localStorage.removeItem("mentorku-active-session");
-    setAuthState(null);
-    setUser(null);
-    setChats([]);
-    setPage("chat");
-    setSettingsOpen(false);
-  };
-
-  const handleDeleteAccount = () => {
-    if(confirm(`Yakin hapus semua data milik ${user.name}?`)) {
-        const storageKey = `mentorku-data-${authState.userId}`;
-        localStorage.removeItem(storageKey);
-        localStorage.removeItem("tutor_currentUser");
-        localStorage.removeItem("mentorku-active-session");
-        
-        setAuthState(null);
-        setUser(null);
-        setChats([]);
-        setPage("chat");
-    }
-  };
-
-  const handleUpdateProfile = (updatedData) => {
-    const newUserData = {
-      ...user,
-      name: updatedData.name,
-      currentGrade: updatedData.currentGrade,
-    };
-    
-    setUser(newUserData);
-    
-    // Update di localStorage
-    localStorage.setItem("mentorku-active-session", JSON.stringify(newUserData));
-    localStorage.setItem(`mentorku-profile-${authState.username}`, JSON.stringify(newUserData));
-    localStorage.setItem(`mentorku-data-${authState.userId}`, JSON.stringify({ chats, user: newUserData }));
-  };
-
-  // 5. CHAT LOGIC
-  const activeChat = chats.find((c) => c.id === selectedChatId);
-  const currentMessages = activeChat ? activeChat.messages : [];
-
-  const handleNewChat = () => {
-    const newId = Date.now();
-    const newChat = { id: newId, title: "Chat Baru", messages: [] };
-    setChats((prev) => [newChat, ...prev]);
-    setSelectedChatId(newId);
-  };
-
-  const handleDeleteChat = (id) => {
-    const newChats = chats.filter((c) => c.id !== id);
-    setChats(newChats);
-    if (selectedChatId === id) setSelectedChatId(newChats[0]?.id ?? null);
-  };
-
-  const handleRenameChat = (id, newTitle) => {
-    const updatedChats = chats.map((chat) =>
-      chat.id === id ? { ...chat, title: newTitle } : chat
-    );
-    setChats(updatedChats);
-  };
+  }, [chats, selectedChatId]);
 
   const handleSendMessage = async (textInput, fileInput) => {
+    const activeChat = chats.find(c => c.id === selectedChatId);
     if (!activeChat) return;
 
     const userMsg = { id: Date.now(), sender: "user", text: textInput, fileName: fileInput ? fileInput.name : null };
     
-    setChats((prev) => prev.map((chat) => 
-      chat.id === selectedChatId 
+    let updatedChats = chats.map(chat => 
+        chat.id === selectedChatId 
         ? { ...chat, messages: [...chat.messages, userMsg], title: chat.messages.length === 0 ? textInput.substring(0, 20) : chat.title } 
         : chat
-    ));
-
+    );
+    setChats(updatedChats);
     setIsLoading(true);
 
     try {
       const specificLevel = `Kelas ${user.currentGrade} (${user.level})`;
-      const aiResponseText = await getGeminiResponse(textInput, specificLevel, fileInput);
-      const aiMsg = { id: Date.now() + 1, sender: "ai", text: aiResponseText };
+      const currentHistory = activeChat.messages; 
 
-      setChats((prev) => prev.map((chat) => 
+      const rawAiResponse = await getGeminiResponse(textInput, specificLevel, fileInput, socraticMode, currentHistory);
+      
+      const { text, quiz, originalText } = parseAIResponse(rawAiResponse);
+
+      const aiMsg = { 
+          id: Date.now() + 1, 
+          sender: "ai", 
+          text: text,        
+          originalText: originalText, 
+          quiz: quiz         
+      };
+
+      setChats(prev => prev.map(chat => 
         chat.id === selectedChatId 
           ? { ...chat, messages: [...chat.messages, aiMsg] } 
           : chat
       ));
+
     } catch (error) {
       console.error(error);
     } finally {
@@ -545,24 +308,46 @@ export default function App() {
     }
   };
 
-  // --- RENDERING ---
-  // Step 1: User belum login
-  if (!authState) {
-    return <Login onLoginSuccess={handleLoginSuccess} />;
-  }
+  const handleNewChat = () => {
+    const newId = Date.now();
+    setChats(prev => [{ id: newId, title: "Chat Baru", messages: [] }, ...prev]);
+    setSelectedChatId(newId);
+  };
 
-  // Step 2: User sudah login tapi belum lengkap profile (isi nama & kelas)
-  if (!user) {
-    return <Onboarding onSave={handleRegister} userId={authState.userId} username={authState.username} />;
-  }
+  const handleDeleteChat = (id) => {
+    const newChats = chats.filter(c => c.id !== id);
+    setChats(newChats);
+    if(selectedChatId === id) setSelectedChatId(newChats[0]?.id || null);
+  };
 
-  // Step 3: User sudah login dan profil lengkap, tampilkan chat
+  const handleUpdateProfile = (updatedData) => {
+    const newUserData = { ...user, ...updatedData };
+    setUser(newUserData);
+    localStorage.setItem("mentorku-active-session", JSON.stringify(newUserData));
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("tutor_currentUser");
+    localStorage.removeItem("mentorku-active-session");
+    window.location.reload();
+  }; // Error handleLogout solved (dipakai di Header)
+
+  const handleDeleteAccount = () => {
+    if(confirm(`Yakin hapus akun ${user.name}?`)) {
+        localStorage.removeItem(`mentorku-data-${authState.userId}`);
+        handleLogout();
+    }
+  };
+
+  if (!authState) return <Login onLoginSuccess={(data) => { setAuthState(data); localStorage.setItem("tutor_currentUser", JSON.stringify(data)); }} />;
+  if (!user) return <Onboarding onSave={(data) => { setUser(calculateCurrentStatus(data)); localStorage.setItem("mentorku-active-session", JSON.stringify(data)); }} userId={authState.userId} username={authState.username} />;
 
   return (
     <div className="app-shell">
+      {/* HEADER DIKEMBALIKAN AGAR VARIABEL logo, setPage, handleLogout TERPAKAI */}
       <header className="app-header">
         <div className="app-header-left" style={{ cursor: "pointer" }} onClick={() => setPage("chat")}>
-          <img src={logo} alt="MentorkuAI" className="app-logo" />
+          <img src={logo} alt="MentorkuAI" className="app-logo" /> 
           <span className="app-title">MentorkuAI</span>
         </div>
         
@@ -588,16 +373,24 @@ export default function App() {
       </header>
 
       {page === "chat" ? (
-        <ChatLayout
-          logsOpen={logsOpen} setLogsOpen={setLogsOpen} 
-          messages={currentMessages} onSendMessage={handleSendMessage} 
-          input={input} setInput={setInput} isLoading={isLoading} 
-          chats={chats} selectedChatId={selectedChatId}
-          setSelectedChatId={setSelectedChatId} onNewChat={handleNewChat} onDeleteChat={handleDeleteChat} onRenameChat={handleRenameChat}
-          level={user.level} user={user}
+        <ChatLayout 
+            logsOpen={logsOpen} setLogsOpen={setLogsOpen}
+            messages={chats.find(c => c.id === selectedChatId)?.messages || []}
+            onSendMessage={handleSendMessage}
+            input={input} setInput={setInput} isLoading={isLoading}
+            chats={chats} selectedChatId={selectedChatId} setSelectedChatId={setSelectedChatId}
+            onNewChat={handleNewChat} onDeleteChat={handleDeleteChat}
+            level={user.level} user={user}
+            socraticMode={socraticMode} setSocraticMode={setSocraticMode}
         />
       ) : (
-        <ProfilePage user={user} onBack={() => setPage("chat")} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount} onUpdateProfile={handleUpdateProfile}/>
+        <ProfilePage 
+            user={user} 
+            onBack={() => setPage("chat")} 
+            onLogout={handleLogout} 
+            onDeleteAccount={handleDeleteAccount} 
+            onUpdateProfile={handleUpdateProfile}
+        />
       )}
     </div>
   );

@@ -490,52 +490,73 @@ body {
 /* =========================================
    9B. LOGIN SCREEN STYLING
    ========================================= */
+/* 1. Container Utama */
 .login-container {
   display: flex;
   justify-content: center;
-  align-items: flex-start;
-  min-height: 100vh;
-  background: linear-gradient(135deg, #0891b2 0%, #06b6d4 50%, #3b82f6 100%);
+  align-items: center;
+  min-height: 100vh; /* Gunakan min-height, bukan height biasa */
+  background: linear-gradient(135deg, #07acd6 0%, #3b82f6 100%);
   padding: 20px;
-  font-family: "Poppins", sans-serif;
-  overflow-y: auto;
-  padding-top: max(20px, (100vh - 500px) / 2);
+  
+  /* Pastikan container ini sendiri tidak scroll, biar card-nya yang scroll */
+  overflow: hidden; 
 }
 
+/* 2. Kartu Login (Area Scrollable) */
 .login-card {
   background: white;
   padding: 40px;
   border-radius: 24px;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.2);
   width: 100%;
-  max-width: 400px;
-  position: relative;
-  overflow: hidden;
-}
-
-.login-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 4px;
-  background: linear-gradient(90deg, #0891b2, #06b6d4);
-}
-
-.login-header {
-  margin-bottom: 30px;
+  max-width: 420px;
   text-align: center;
+  position: relative;
+
+  /* --- TAMBAHAN PENTING AGAR SCROLLABLE --- */
+  max-height: 90vh; /* Tinggi maksimal kartu 90% dari layar */
+  overflow-y: auto; /* Munculkan scrollbar vertikal jika konten kepanjangan */
+  display: flex;
+  flex-direction: column;
 }
 
-.login-logo {
-  width: 60px;
-  height: 60px;
-  margin-bottom: 15px;
-  border-radius: 12px;
-  display: block;
-  margin-left: auto;
-  margin-right: auto;
+/* 3. Mempercantik Scrollbar (Opsional - Biar terlihat Premium) */
+/* Chrome, Safari, Edge */
+.login-card::-webkit-scrollbar {
+  width: 6px;
+}
+
+.login-card::-webkit-scrollbar-track {
+  background: transparent;
+  margin-top: 20px; /* Jarak scrollbar dari atas/bawah */
+  margin-bottom: 20px;
+}
+
+.login-card::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1; /* Warna batang scroll abu soft */
+  border-radius: 20px;
+}
+
+.login-card::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
+}
+
+/* 4. Responsif untuk HP Kecil */
+@media (max-height: 700px) {
+  .login-card {
+    padding: 25px; /* Kurangi padding biar muat lebih banyak konten */
+    max-height: 95vh; /* Manfaatkan layar lebih maksimal */
+  }
+  
+  .login-header h1 {
+    font-size: 20px; /* Kecilkan font judul */
+  }
+  
+  .login-logo {
+    width: 50px; /* Kecilkan logo */
+    height: 50px;
+  }
 }
 
 .login-header h1 {
@@ -680,21 +701,23 @@ body {
 .toggle-btn {
   background: none;
   border: none;
-  color: #0891b2;
-  font-weight: 600;
+  color: #07acd6;     /* Warna biru */
+  font-weight: 700;   /* Bold */
   cursor: pointer;
-  transition: color 0.2s;
   text-decoration: underline;
+  padding: 0;
+  margin-left: 4px;   /* Jarak sedikit dari teks sebelumnya */
+  outline: none;
 }
 
 .toggle-btn:hover:not(:disabled) {
   color: #06b6d4;
 }
 
-.toggle-btn:disabled {
-  color: #cbd5e1;
-  cursor: not-allowed;
-  text-decoration: none;
+.toggle-btn:focus,
+.toggle-btn:active {
+  outline: none;
+  border: none;
 }
 
 .login-info {
@@ -762,4 +785,98 @@ body {
 
 .markdown-content tr:hover {
   background-color: #f0f9ff; /* Efek hover biru muda saat mouse lewat */
+}
+
+/* Styling tombol mata password */
+.password-toggle {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  display: flex; /* Agar icon pas di tengah */
+  align-items: center;
+  color: #6b7280; /* Warna abu-abu */
+  
+  /* INI SOLUSINYA: Matikan outline */
+  outline: none; 
+}
+
+/* Pastikan saat diklik (focus) juga tidak ada outline */
+.password-toggle:focus,
+.password-toggle:active {
+  outline: none;
+  box-shadow: none; /* Jaga-jaga jika ada shadow */
+}
+
+/* --- FIX: MENGHILANGKAN BACKGROUND ABU-ABU AUTOFILL --- */
+/* Chrome, Safari, Edge, Opera */
+input:-webkit-autofill,
+input:-webkit-autofill:hover, 
+input:-webkit-autofill:focus, 
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px white inset !important; /* Paksa background jadi putih */
+  -webkit-text-fill-color: #333 !important; /* Pastikan teks tetap hitam */
+  transition: background-color 5000s ease-in-out 0s; /* Trik tambahan mencegah perubahan warna */
+}
+
+/* =========================================
+   STYLING POPUP ERROR
+   ========================================= */
+.error-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5); /* Latar belakang gelap transparan */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  backdrop-filter: blur(4px); /* Efek blur di belakang popup */
+}
+
+.error-popup-content {
+  background: white;
+  padding: 30px;
+  border-radius: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  width: 90%;
+  max-width: 320px;
+  text-align: center;
+  border: 1px solid #fee2e2;
+}
+
+.error-icon {
+  font-size: 40px;
+  margin-bottom: 15px;
+}
+
+.error-popup-content h3 {
+  margin: 0 0 10px 0;
+  color: #ef4444;
+  font-size: 18px;
+}
+
+.error-popup-content p {
+  color: #4b5563;
+  margin-bottom: 20px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.error-close-btn {
+  background-color: #ef4444;
+  color: white;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+  outline: none;
+}
+
+.error-close-btn:hover {
+  background-color: #dc2626;
 }
