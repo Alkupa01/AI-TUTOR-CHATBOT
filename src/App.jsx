@@ -1,29 +1,26 @@
+// App.jsx
 import { useState, useEffect, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import "./styles/main.css";
-import logo from "./assets/logofixx.png"; // Error 'logo' solved (dipakai di Header)
-import { getGeminiResponse } from "./services/geminiService";
+import logo from "./assets/logofixx.png";
+import { getGeminiResponse, generateQuizFromAI, getReportAnalysis } from "./services/geminiService"; 
 import Login from "./Login";
 import Onboarding from "./Onboarding";
 
-// --- HELPER PARSING JSON ---
+// --- HELPER ---
 const parseAIResponse = (text) => {
   const jsonRegex = /~~~json([\s\S]*?)~~~$/;
   const match = text.match(jsonRegex);
-
   if (match) {
     try {
-      const jsonString = match[1];
-      const quizData = JSON.parse(jsonString);
-      const cleanText = text.replace(jsonRegex, "").trim();
-      return { text: cleanText, quiz: quizData, originalText: text };
-    } catch (e) {
-      console.error("Gagal parse JSON quiz:", e);
-      return { text: text, quiz: null, originalText: text };
+      return { text: text.replace(jsonRegex, "").trim(), quiz: JSON.parse(match[1]), originalText: text };
+    } catch (e) { 
+      console.error("JSON Parse Error:", e); // [FIX] Variabel 'e' digunakan untuk logging
+      return { text, quiz: null, originalText: text }; 
     }
   }
-  return { text: text, quiz: null, originalText: text };
+  return { text, quiz: null, originalText: text };
 };
 
 const calculateCurrentStatus = (userData) => {
@@ -40,40 +37,36 @@ const calculateCurrentStatus = (userData) => {
   return { ...userData, currentGrade, level };
 };
 
-// --- CHAT LAYOUT ---
-function ChatLayout({ 
+// --- HALAMAN 1: CHAT LAYOUT ---
+function ChatView({ 
   logsOpen, setLogsOpen, messages, onSendMessage, input, setInput, isLoading,
   chats, selectedChatId, setSelectedChatId, onNewChat, onDeleteChat, level, user,
   socraticMode, setSocraticMode 
-  // 'onRenameChat' dihapus dari sini karena tidak dipakai di UI
 }) {
   const [attachment, setAttachment] = useState(null);
   const fileInputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const [answeredQuizzes, setAnsweredQuizzes] = useState({}); 
 
-  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  useEffect(() => scrollToBottom(), [messages, isLoading, attachment]);
+  useEffect(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), [messages, isLoading, attachment]);
 
   const handleSendClick = () => {
     if ((!input.trim() && !attachment) || isLoading) return;
     onSendMessage(input, attachment);
-    setInput(""); 
-    setAttachment(null);
+    setInput(""); setAttachment(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleQuizOptionClick = (messageId, option) => {
     if (answeredQuizzes[messageId] || isLoading) return;
     setAnsweredQuizzes(prev => ({ ...prev, [messageId]: option.label }));
-    const userText = `Saya memilih jawaban ${option.label}: "${option.text}"`;
-    onSendMessage(userText, null);
+    onSendMessage(`Saya memilih jawaban ${option.label}: "${option.text}"`, null);
   };
 
   return (
     <div className={`app-main ${logsOpen ? "with-logs" : "no-logs"}`}>
       <div className="chat-section">
-        <div className="chat-panel">
+        <div className="chat-panel" style={{paddingBottom: '80px'}}> 
           <div className="chat-header-actions" style={{display:'flex', justifyContent:'space-between', padding:'0 10px', marginBottom:'20px'}}>
              <div className="chat-greeting">
                 Hi, {user.name}! 👋 <br/>
@@ -83,51 +76,23 @@ function ChatLayout({
                 <span style={{fontSize:'12px', fontWeight:'bold', color: socraticMode ? '#0284c7' : '#64748b'}}>{socraticMode ? "🧠 Tutor" : "⚡ Cepat"}</span>
                 <label className="switch" style={{position:'relative', display:'inline-block', width:'34px', height:'20px'}}>
                    <input type="checkbox" checked={socraticMode} onChange={() => setSocraticMode(!socraticMode)} style={{opacity:0, width:0, height:0}}/>
-                   <span className="slider round" style={{position:'absolute', cursor:'pointer', top:0, left:0, right:0, bottom:0, backgroundColor: socraticMode ? '#0ea5e9' : '#cbd5e1', transition:'.4s', borderRadius:'34px'}}>
-                      <span style={{position:'absolute', content:"", height:'14px', width:'14px', left:'3px', bottom:'3px', backgroundColor:'white', transition:'.4s', borderRadius:'50%', transform: socraticMode ? 'translateX(14px)' : 'translateX(0)'}}></span>
-                   </span>
+                   <span className="slider round" style={{position:'absolute', cursor:'pointer', top:0, left:0, right:0, bottom:0, backgroundColor: socraticMode ? '#0ea5e9' : '#cbd5e1', transition:'.4s', borderRadius:'34px'}}><span style={{position:'absolute', content:"", height:'14px', width:'14px', left:'3px', bottom:'3px', backgroundColor:'white', transition:'.4s', borderRadius:'50%', transform: socraticMode ? 'translateX(14px)' : 'translateX(0)'}}></span></span>
                 </label>
              </div>
           </div>
 
           <div className="chat-messages">
              {messages.length === 0 && <div className="chat-bubble ai">Mau tanya materi apa hari ini?</div>}
-             
              {messages.map((m) => (
               <div key={m.id} className={`chat-bubble ${m.sender === "user" ? "user" : "ai"}`}>
                 {m.fileName && <div className="file-indicator">📎 {m.fileName}</div>}
-                
-                <div className="markdown-content">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text}</ReactMarkdown>
-                </div>
-
+                <div className="markdown-content"><ReactMarkdown remarkPlugins={[remarkGfm]}>{m.text}</ReactMarkdown></div>
                 {m.sender === "ai" && m.quiz && (
                   <div className="quiz-container" style={{marginTop: "15px", display: "flex", flexDirection: "column", gap: "8px"}}>
                     <div style={{fontSize: "0.9em", fontWeight: "bold", marginBottom: "5px"}}>Pilih Jawaban:</div>
-                    {m.quiz.options.map((opt, idx) => {
-                        const isSelected = answeredQuizzes[m.id] === opt.label;
-                        const isAnswered = !!answeredQuizzes[m.id];
-                        return (
-                          <button 
-                            key={idx}
-                            onClick={() => handleQuizOptionClick(m.id, opt)}
-                            disabled={isAnswered}
-                            className={`quiz-option-btn ${isSelected ? "selected" : ""}`}
-                            style={{
-                              padding: "10px",
-                              border: "1px solid #ddd",
-                              borderRadius: "8px",
-                              background: isSelected ? "#07acd6" : "white",
-                              color: isSelected ? "white" : "#333",
-                              cursor: isAnswered ? "default" : "pointer",
-                              textAlign: "left",
-                              transition: "0.2s"
-                            }}
-                          >
-                            <strong>{opt.label}.</strong> {opt.text}
-                          </button>
-                        );
-                    })}
+                    {m.quiz.options.map((opt, idx) => (
+                          <button key={idx} onClick={() => handleQuizOptionClick(m.id, opt)} disabled={!!answeredQuizzes[m.id]} className={`quiz-option-btn ${answeredQuizzes[m.id] === opt.label ? "selected" : ""}`} style={{padding: "10px", border: "1px solid #ddd", borderRadius: "8px", background: answeredQuizzes[m.id] === opt.label ? "#07acd6" : "white", color: answeredQuizzes[m.id] === opt.label ? "white" : "#333", cursor: "pointer", textAlign: "left"}}><strong>{opt.label}.</strong> {opt.text}</button>
+                    ))}
                   </div>
                 )}
               </div>
@@ -136,10 +101,8 @@ function ChatLayout({
             <div ref={messagesEndRef} />
           </div>
 
-          <div className="chat-input-wrapper">
-            {attachment && (
-              <div className="attachment-preview"><span className="attachment-name">📄 {attachment.name}</span><button className="attachment-remove" onClick={() => {setAttachment(null); if(fileInputRef.current) fileInputRef.current.value=""}}>✕</button></div>
-            )}
+          <div className="chat-input-wrapper" style={{bottom: '70px'}}> 
+            {attachment && <div className="attachment-preview"><span className="attachment-name">📄 {attachment.name}</span><button className="attachment-remove" onClick={() => {setAttachment(null); if(fileInputRef.current) fileInputRef.current.value=""}}>✕</button></div>}
             <div className="chat-input-bar">
               <input type="file" ref={fileInputRef} onChange={(e) => setAttachment(e.target.files[0])} style={{display: "none"}} />
               <button className="icon-btn attach-btn" onClick={() => fileInputRef.current.click()}>📎</button>
@@ -153,15 +116,11 @@ function ChatLayout({
 
       <div className="logs-section">
         <div className="logs-panel">
-            <div className="logs-header">
-                <div className="logs-title">Riwayat Chat</div>
-                <div className="logs-buttons"><button className="new-chat-btn" onClick={onNewChat}>+ Baru</button><button className="icon-btn" onClick={() => setLogsOpen(false)}>❮</button></div>
-            </div>
+            <div className="logs-header"><div className="logs-title">Riwayat</div><div className="logs-buttons"><button className="new-chat-btn" onClick={onNewChat}>+</button><button className="icon-btn" onClick={() => setLogsOpen(false)}>❮</button></div></div>
             <div className="logs-list">
             {chats.map((chat) => (
               <div key={chat.id} className={"log-item " + (chat.id === selectedChatId ? "active" : "")} onClick={() => setSelectedChatId(chat.id)}>
-                 <span style={{whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '150px'}}>{chat.title}</span>
-                 <button className="log-delete-btn" onClick={(e) => {e.stopPropagation(); onDeleteChat(chat.id)}}>🗑</button>
+                 <span style={{whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '150px'}}>{chat.title}</span><button className="log-delete-btn" onClick={(e) => {e.stopPropagation(); onDeleteChat(chat.id)}}>🗑</button>
               </div>
             ))}
             </div>
@@ -171,8 +130,281 @@ function ChatLayout({
   );
 }
 
-// --- PROFILE PAGE (Dikembalikan agar setPage tidak error) ---
-function ProfilePage({ user, onBack, onLogout, onDeleteAccount, onUpdateProfile }) {
+// --- HALAMAN 2: QUIZ & BAKAT ---
+function QuizView({ user, onSaveResult }) {
+    const [step, setStep] = useState("menu"); 
+    const [quizData, setQuizData] = useState([]);
+    const [answers, setAnswers] = useState({});
+    const [score, setScore] = useState(0);
+    const [subject, setSubject] = useState("");
+
+    const startQuiz = async (selectedSubject, topic) => {
+        setSubject(selectedSubject);
+        setStep("loading");
+        const data = await generateQuizFromAI(user.currentGrade, user.level, selectedSubject, topic);
+        if(data && data.length > 0) {
+            setQuizData(data);
+            setStep("quiz");
+            setAnswers({});
+        } else {
+            alert("Gagal membuat soal. Coba lagi.");
+            setStep("menu");
+        }
+    };
+
+    const handleAnswer = (qIndex, optIndex) => {
+        setAnswers({ ...answers, [qIndex]: optIndex });
+    };
+
+    const finishQuiz = () => {
+        let correctCount = 0;
+        quizData.forEach((q, idx) => {
+            if (answers[idx] === q.correctIndex) correctCount++;
+        });
+        const finalScore = Math.round((correctCount / quizData.length) * 100);
+        setScore(finalScore);
+        setStep("result");
+
+        onSaveResult({
+            id: Date.now(),
+            date: new Date().toLocaleDateString(),
+            subject: subject,
+            topic: quizData[0]?.topic || "Umum", 
+            score: finalScore,
+            total: quizData.length
+        });
+    };
+
+    if (step === "loading") return <div className="center-screen"><h3>🔄 Sedang meminta soal ke AI...</h3><p>Mohon tunggu sebentar ya, {user.name}!</p></div>;
+
+    if (step === "result") return (
+        <div className="quiz-result-card fade-in">
+            <h2>🎉 Hasil Kuis {subject}</h2>
+            <div className="score-circle">{score}</div>
+            <p>{score > 75 ? "Luar biasa! Pertahankan! 🌟" : "Tetap semangat belajar ya! 💪"}</p>
+            <button className="main-btn" onClick={() => setStep("menu")}>Kembali ke Menu</button>
+        </div>
+    );
+
+    if (step === "quiz") return (
+        <div className="quiz-taking-area fade-in">
+            <div className="quiz-header">
+                <h3>Uji Kemampuan: {subject}</h3>
+                <span>{Object.keys(answers).length}/{quizData.length} Soal</span>
+            </div>
+            {quizData.map((q, idx) => (
+                <div key={idx} className="quiz-card">
+                    <p className="quiz-question">
+                        <strong>{idx + 1}.</strong> {q.question}
+                    </p>
+                    <div className="quiz-options">
+                        {q.options.map((opt, optIdx) => {
+                            // [FIX] Defensive coding: Pastikan opt adalah string agar tidak BLANK
+                            // Kadang AI mengembalikan object {text: "..."}
+                            const label = typeof opt === 'object' ? (opt.text || opt.label || JSON.stringify(opt)) : opt;
+                            
+                            return (
+                                <button 
+                                    key={optIdx} 
+                                    className={`option-btn ${answers[idx] === optIdx ? "selected" : ""}`}
+                                    onClick={() => handleAnswer(idx, optIdx)}
+                                >
+                                    {label}
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            ))}
+            {Object.keys(answers).length === quizData.length && (
+                <button className="finish-btn" onClick={finishQuiz}>Selesai & Lihat Nilai</button>
+            )}
+        </div>
+    );
+
+    return (
+        <div className="quiz-menu fade-in">
+            <h2>🧠 Pusat Evaluasi</h2>
+            <p>Pilih tes untuk mengukur kemampuanmu.</p>
+            
+            <div className="menu-grid">
+                <div className="menu-card" onClick={() => startQuiz("Matematika", "Umum")}>
+                    <span className="icon">📐</span>
+                    <h3>Matematika</h3>
+                    <p>Tes hitungan & logika</p>
+                </div>
+                <div className="menu-card" onClick={() => startQuiz("IPA (Sains)", "Umum")}>
+                    <span className="icon">🧬</span>
+                    <h3>Sains / IPA</h3>
+                    <p>Alam & makhluk hidup</p>
+                </div>
+                <div className="menu-card" onClick={() => startQuiz("Bahasa Inggris", "Grammar & Vocab")}>
+                    <span className="icon">🇬🇧</span>
+                    <h3>B. Inggris</h3>
+                    <p>Vocabulary & Grammar</p>
+                </div>
+                <div className="menu-card special" onClick={() => startQuiz("Minat Bakat", "Psikotes Hobi")}>
+                    <span className="icon">🎨</span>
+                    <h3>Tes Minat Bakat</h3>
+                    <p>Cari tahu potensimu!</p>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+// --- HALAMAN 3: RAPORT VIEW ---
+function ReportView({ history, user }) {
+    const [selectedSubject, setSelectedSubject] = useState("Semua");
+    const [analysis, setAnalysis] = useState(null);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+    // 1. Filter Data berdasarkan Mapel
+    const filteredHistory = selectedSubject === "Semua" 
+        ? history 
+        : history.filter(h => h.subject === selectedSubject);
+
+    // 2. Ambil list Mapel unik untuk Dropdown
+    const subjects = ["Semua", ...new Set(history.map(h => h.subject))];
+
+    // 3. Hitung Statistik Sederhana
+    const averageScore = filteredHistory.length > 0 
+        ? Math.round(filteredHistory.reduce((acc, curr) => acc + curr.score, 0) / filteredHistory.length) 
+        : 0;
+    
+    const bestScore = filteredHistory.length > 0 
+        ? Math.max(...filteredHistory.map(h => h.score)) 
+        : 0;
+
+    // 4. Fungsi Minta Analisis AI
+    const handleAnalyze = async () => {
+        if (selectedSubject === "Semua") {
+            alert("Pilih satu mata pelajaran spesifik dulu (misal: Matematika) untuk dianalisis.");
+            return;
+        }
+        if (filteredHistory.length < 2) { // Minimal 2 kuis biar ada tren
+            alert("Kerjakan minimal 2 kuis di mapel ini agar AI bisa membaca tren nilaimu.");
+            return;
+        }
+
+        setIsAnalyzing(true);
+        const result = await getReportAnalysis(user.name, user.currentGrade, selectedSubject, filteredHistory);
+        setAnalysis(result);
+        setIsAnalyzing(false);
+    };
+
+    return (
+        <div className="report-page fade-in">
+            <div className="report-header-print"> {/* Header khusus cetak */}
+                <h1>RAPORT KEMAJUAN BELAJAR</h1>
+                <p>MentorkuAI - Personalized Learning System</p>
+                <hr/>
+            </div>
+
+            <div className="report-controls">
+                <h2>📊 Statistik Belajar</h2>
+                <select 
+                    value={selectedSubject} 
+                    onChange={(e) => { setSelectedSubject(e.target.value); setAnalysis(null); }}
+                    className="subject-select"
+                >
+                    {subjects.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+            </div>
+
+            {/* STATS CARDS */}
+            <div className="stats-grid">
+                <div className="stat-card">
+                    <span className="label">Rata-Rata</span>
+                    <span className="value">{averageScore}</span>
+                </div>
+                <div className="stat-card">
+                    <span className="label">Tertinggi</span>
+                    <span className="value">{bestScore}</span>
+                </div>
+                <div className="stat-card">
+                    <span className="label">Total Kuis</span>
+                    <span className="value">{filteredHistory.length}</span>
+                </div>
+            </div>
+
+            {/* TABLE HISTORY */}
+            <div className="history-section">
+                <h3>Riwayat Kuis ({selectedSubject})</h3>
+                {filteredHistory.length === 0 ? (
+                    <div className="empty-state">Belum ada data. Yuk kerjakan kuis!</div>
+                ) : (
+                    <table className="report-table">
+                        <thead>
+                            <tr>
+                                <th>Tanggal</th>
+                                <th>Topik/Materi</th>
+                                <th>Skor</th>
+                                <th>Ket.</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {filteredHistory.map((h) => (
+                                <tr key={h.id}>
+                                    <td>{h.date}</td>
+                                    <td>{h.topic || h.subject}</td> {/* Fallback jika topic kosong */}
+                                    <td>
+                                        <span className={`score-badge ${h.score >= 75 ? 'good' : 'bad'}`}>
+                                            {h.score}
+                                        </span>
+                                    </td>
+                                    <td>{h.score >= 75 ? "Tuntas" : "Remedial"}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                )}
+            </div>
+
+            {/* AI ANALYSIS SECTION */}
+            {selectedSubject !== "Semua" && filteredHistory.length > 0 && (
+                <div className="analysis-section">
+                    <button 
+                        className="analyze-btn" 
+                        onClick={handleAnalyze} 
+                        disabled={isAnalyzing}
+                    >
+                        {isAnalyzing ? "🤖 Sedang Menganalisis..." : "✨ Analisis Kemampuan Saya (AI)"}
+                    </button>
+
+                    {analysis && (
+                        <div className="ai-report-card fade-in">
+                            <h3>📝 Evaluasi Mentor AI: {selectedSubject}</h3>
+                            <div className="analysis-grid">
+                                <div className="analysis-item strength">
+                                    <h4>💪 Keunggulan (Materi Dikuasai)</h4>
+                                    <p>{analysis.strength}</p>
+                                </div>
+                                <div className="analysis-item weakness">
+                                    <h4>⚠️ Perlu Peningkatan</h4>
+                                    <p>{analysis.weakness}</p>
+                                </div>
+                                <div className="analysis-item advice">
+                                    <h4>💡 Saran Belajar</h4>
+                                    <p>{analysis.advice}</p>
+                                </div>
+                                <div className="analysis-item prediction">
+                                    <h4>🚀 Prediksi Potensi</h4>
+                                    <p>{analysis.prediction}</p>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            <button className="print-btn" onClick={() => window.print()}>🖨️ Download PDF Raport</button>
+        </div>
+    );
+}
+
+// --- HALAMAN 4: PROFILE ---
+function ProfileView({ user, onLogout, onDeleteAccount, onUpdateProfile }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedName, setEditedName] = useState(user.name);
   const [editedGrade, setEditedGrade] = useState(user.currentGrade);
@@ -186,9 +418,6 @@ function ProfilePage({ user, onBack, onLogout, onDeleteAccount, onUpdateProfile 
 
   return (
     <div className="profile-page fade-in">
-      <div className="profile-header-nav">
-        <button onClick={onBack} className="back-btn">← Kembali</button>
-      </div>
       <div className="profile-card">
         {isEditing ? (
             <div className="profile-edit-form">
@@ -229,8 +458,10 @@ export default function App() {
   const [logsOpen, setLogsOpen] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
   const [input, setInput] = useState("");
-  const [page, setPage] = useState("chat"); // Error setPage solved (dipakai di Header)
-  const [settingsOpen, setSettingsOpen] = useState(false); // State untuk dropdown menu
+  
+  // NAVIGATION STATE
+  const [page, setPage] = useState("chat"); 
+  const [quizHistory, setQuizHistory] = useState([]); 
 
   // Load Initial Data
   useEffect(() => {
@@ -248,6 +479,7 @@ export default function App() {
             const parsed = JSON.parse(savedData);
             setChats(parsed.chats || []);
             setSelectedChatId(parsed.selectedChatId);
+            setQuizHistory(parsed.quizHistory || []); 
         } else {
             const newId = Date.now();
             setChats([{ id: newId, title: "Chat Baru", messages: [] }]);
@@ -258,140 +490,73 @@ export default function App() {
 
   // Auto Save
   useEffect(() => {
-    if (user && authState && chats.length > 0) {
+    if (user && authState) {
       const storageKey = `mentorku-data-${authState.userId}`;
-      const dataToSave = { chats, selectedChatId };
+      const dataToSave = { chats, selectedChatId, quizHistory }; 
       localStorage.setItem(storageKey, JSON.stringify(dataToSave));
     }
-  }, [chats, selectedChatId]);
+  }, [chats, selectedChatId, quizHistory]);
 
   const handleSendMessage = async (textInput, fileInput) => {
     const activeChat = chats.find(c => c.id === selectedChatId);
     if (!activeChat) return;
-
     const userMsg = { id: Date.now(), sender: "user", text: textInput, fileName: fileInput ? fileInput.name : null };
-    
-    let updatedChats = chats.map(chat => 
-        chat.id === selectedChatId 
-        ? { ...chat, messages: [...chat.messages, userMsg], title: chat.messages.length === 0 ? textInput.substring(0, 20) : chat.title } 
-        : chat
-    );
+    let updatedChats = chats.map(chat => chat.id === selectedChatId ? { ...chat, messages: [...chat.messages, userMsg], title: chat.messages.length === 0 ? textInput.substring(0, 20) : chat.title } : chat);
     setChats(updatedChats);
     setIsLoading(true);
-
     try {
       const specificLevel = `Kelas ${user.currentGrade} (${user.level})`;
-      const currentHistory = activeChat.messages; 
-
-      const rawAiResponse = await getGeminiResponse(textInput, specificLevel, fileInput, socraticMode, currentHistory);
-      
+      const rawAiResponse = await getGeminiResponse(textInput, specificLevel, fileInput, socraticMode, activeChat.messages);
       const { text, quiz, originalText } = parseAIResponse(rawAiResponse);
-
-      const aiMsg = { 
-          id: Date.now() + 1, 
-          sender: "ai", 
-          text: text,        
-          originalText: originalText, 
-          quiz: quiz         
-      };
-
-      setChats(prev => prev.map(chat => 
-        chat.id === selectedChatId 
-          ? { ...chat, messages: [...chat.messages, aiMsg] } 
-          : chat
-      ));
-
-    } catch (error) {
-      console.error(error);
-    } finally {
-      setIsLoading(false);
-    }
+      const aiMsg = { id: Date.now() + 1, sender: "ai", text, originalText, quiz };
+      setChats(prev => prev.map(chat => chat.id === selectedChatId ? { ...chat, messages: [...chat.messages, aiMsg] } : chat));
+    } catch (error) { console.error(error); } finally { setIsLoading(false); }
   };
 
-  const handleNewChat = () => {
-    const newId = Date.now();
-    setChats(prev => [{ id: newId, title: "Chat Baru", messages: [] }, ...prev]);
-    setSelectedChatId(newId);
+  const handleSaveQuizResult = (result) => {
+      setQuizHistory(prev => [result, ...prev]);
   };
 
-  const handleDeleteChat = (id) => {
-    const newChats = chats.filter(c => c.id !== id);
-    setChats(newChats);
-    if(selectedChatId === id) setSelectedChatId(newChats[0]?.id || null);
-  };
-
-  const handleUpdateProfile = (updatedData) => {
-    const newUserData = { ...user, ...updatedData };
-    setUser(newUserData);
-    localStorage.setItem("mentorku-active-session", JSON.stringify(newUserData));
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem("tutor_currentUser");
-    localStorage.removeItem("mentorku-active-session");
-    window.location.reload();
-  }; // Error handleLogout solved (dipakai di Header)
-
-  const handleDeleteAccount = () => {
-    if(confirm(`Yakin hapus akun ${user.name}?`)) {
-        localStorage.removeItem(`mentorku-data-${authState.userId}`);
-        handleLogout();
-    }
-  };
+  const handleLogout = () => { localStorage.removeItem("tutor_currentUser"); localStorage.removeItem("mentorku-active-session"); window.location.reload(); };
 
   if (!authState) return <Login onLoginSuccess={(data) => { setAuthState(data); localStorage.setItem("tutor_currentUser", JSON.stringify(data)); }} />;
   if (!user) return <Onboarding onSave={(data) => { setUser(calculateCurrentStatus(data)); localStorage.setItem("mentorku-active-session", JSON.stringify(data)); }} userId={authState.userId} username={authState.username} />;
 
   return (
     <div className="app-shell">
-      {/* HEADER DIKEMBALIKAN AGAR VARIABEL logo, setPage, handleLogout TERPAKAI */}
+      {/* HEADER */}
       <header className="app-header">
-        <div className="app-header-left" style={{ cursor: "pointer" }} onClick={() => setPage("chat")}>
-          <img src={logo} alt="MentorkuAI" className="app-logo" /> 
-          <span className="app-title">MentorkuAI</span>
+        <div className="app-header-left" onClick={() => setPage("chat")}>
+          <img src={logo} alt="MentorkuAI" className="app-logo" /> <span className="app-title">MentorkuAI</span>
         </div>
-        
         <div className="app-header-right">
-          <button className="icon-btn" onClick={() => setSettingsOpen((o) => !o)}>⚙</button>
-          {settingsOpen && (
-            <div className="settings-menu">
-              <div className="settings-user">
-                <div className="settings-avatar">{user.name.charAt(0).toUpperCase()}</div>
-                <div>
-                  <div className="settings-name">{user.name}</div>
-                  <div className="settings-username">{user.level}</div>
-                </div>
-              </div>
-              <hr />
-              <div className="settings-actions">
-                <button className="settings-btn" onClick={() => { setSettingsOpen(false); setPage("profile"); }}>Profil Saya</button>
-                <button className="settings-btn logout" onClick={handleLogout}>Logout</button>
-              </div>
-            </div>
-          )}
+             <div className="user-badge" onClick={() => setPage("profile")}>
+                <div className="avatar-small">{user.name.charAt(0)}</div>
+                <span>{user.name}</span>
+             </div>
         </div>
       </header>
 
-      {page === "chat" ? (
-        <ChatLayout 
-            logsOpen={logsOpen} setLogsOpen={setLogsOpen}
-            messages={chats.find(c => c.id === selectedChatId)?.messages || []}
-            onSendMessage={handleSendMessage}
-            input={input} setInput={setInput} isLoading={isLoading}
-            chats={chats} selectedChatId={selectedChatId} setSelectedChatId={setSelectedChatId}
-            onNewChat={handleNewChat} onDeleteChat={handleDeleteChat}
-            level={user.level} user={user}
-            socraticMode={socraticMode} setSocraticMode={setSocraticMode}
-        />
-      ) : (
-        <ProfilePage 
-            user={user} 
-            onBack={() => setPage("chat")} 
-            onLogout={handleLogout} 
-            onDeleteAccount={handleDeleteAccount} 
-            onUpdateProfile={handleUpdateProfile}
-        />
-      )}
+      {/* CONTENT AREA */}
+      <div className="content-area">
+        {page === "chat" && <ChatView logsOpen={logsOpen} setLogsOpen={setLogsOpen} messages={chats.find(c => c.id === selectedChatId)?.messages || []} onSendMessage={handleSendMessage} input={input} setInput={setInput} isLoading={isLoading} chats={chats} selectedChatId={selectedChatId} setSelectedChatId={setSelectedChatId} onNewChat={()=>{const newId=Date.now();setChats(prev=>[{id:newId,title:"Chat Baru",messages:[]},...prev]);setSelectedChatId(newId)}} onDeleteChat={(id)=>{const n=chats.filter(c=>c.id!==id);setChats(n);if(selectedChatId===id)setSelectedChatId(n[0]?.id||null)}} level={user.level} user={user} socraticMode={socraticMode} setSocraticMode={setSocraticMode} />}
+        {page === "quiz" && <QuizView user={user} onSaveResult={handleSaveQuizResult} />}
+        {page === "report" && <ReportView history={quizHistory} user={user} />}
+        {page === "profile" && <ProfileView user={user} onLogout={handleLogout} onDeleteAccount={()=>{if(confirm('Hapus?')){localStorage.removeItem(`mentorku-data-${authState.userId}`);handleLogout()}}} onUpdateProfile={(u)=>{setUser({...user,...u});localStorage.setItem("mentorku-active-session",JSON.stringify({...user,...u}))}} />}
+      </div>
+
+      {/* BOTTOM NAVIGATION BAR */}
+      <nav className="bottom-nav">
+          <button className={`nav-item ${page === "chat" ? "active" : ""}`} onClick={() => setPage("chat")}>
+              <span className="icon">💬</span> Chat
+          </button>
+          <button className={`nav-item ${page === "quiz" ? "active" : ""}`} onClick={() => setPage("quiz")}>
+              <span className="icon">📝</span> Uji Kemampuan
+          </button>
+          <button className={`nav-item ${page === "report" ? "active" : ""}`} onClick={() => setPage("report")}>
+              <span className="icon">📊</span> Raport
+          </button>
+      </nav>
     </div>
   );
 }
